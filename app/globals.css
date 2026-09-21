@@ -1,0 +1,348 @@
+@import "tailwindcss";
+
+@theme {
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-650: #3b4b63;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-slate-950: #020617;
+  
+  --color-teal-50: #f0fdfa;
+  --color-teal-100: #ccfbf1;
+  --color-teal-200: #99f6e4;
+  --color-teal-300: #5eead4;
+  --color-teal-400: #2dd4bf;
+  --color-teal-500: #14b8a6;
+  --color-teal-600: #0d9488;
+  --color-teal-700: #0f766e;
+  --color-teal-800: #115e59;
+  --color-teal-850: #125651;
+  --color-teal-900: #134e4a;
+  --color-teal-950: #042f2e;
+
+  --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+  --color-emerald-700: #047857;
+  --color-emerald-800: #065f46;
+  --color-emerald-900: #064e3b;
+  --color-emerald-950: #022c22;
+
+  --color-indigo-50: #eef2ff;
+  --color-indigo-100: #e0e7ff;
+  --color-indigo-200: #c7d2fe;
+  --color-indigo-300: #a5b4fc;
+  --color-indigo-400: #818cf8;
+  --color-indigo-500: #6366f1;
+  --color-indigo-600: #4f46e5;
+  --color-indigo-700: #4338ca;
+  --color-indigo-800: #3730a3;
+  --color-indigo-900: #312e81;
+  --color-indigo-950: #1e1b4b;
+
+  --color-rose-50: #fff1f2;
+  --color-rose-100: #ffe4e6;
+  --color-rose-200: #fecdd3;
+  --color-rose-300: #fda4af;
+  --color-rose-400: #fb7185;
+  --color-rose-500: #f43f5e;
+  --color-rose-600: #e11d48;
+  --color-rose-700: #be123c;
+  --color-rose-800: #9f1239;
+  --color-rose-900: #881337;
+  --color-rose-950: #4c0519;
+
+  --animate-float: float 3s ease-in-out infinite;
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+}
+
+@keyframes iconBounce3s {
+  0%, 75%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  80% {
+    transform: translateY(-8px) scale(1.18);
+  }
+  85% {
+    transform: translateY(1px) scale(0.95);
+  }
+  90% {
+    transform: translateY(-3px) scale(1.05);
+  }
+  95% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-icon-bounce-3s {
+  animation: iconBounce3s 3s ease-in-out infinite;
+}
+
+.glass-menu-active {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow: 0 8px 25px 0 rgba(0, 0, 0, 0.25), inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.5);
+}
+
+.icon-3d-shadow {
+  filter: drop-shadow(0px 3px 3px rgba(0, 0, 0, 0.65)) drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+/* Utility to hide scrollbar while preserving scroll functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
+}
+
+@layer base {
+  html {
+    scroll-behavior: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Global Scrollbar Customization for Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #6366F1 rgba(255, 255, 255, 0.03);
+  }
+
+  /* WebKit (Chrome, Safari, Edge) */
+  ::-webkit-scrollbar {
+    width: 8px; /* 8px max width for hover state */
+    height: 8px;
+  }
+
+  /* Responsive Width */
+  @media (max-width: 1024px) {
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    /* Using background-clip to create the "thin" effect inside an 8px track */
+    background-color: #6366F1;
+    background-image: linear-gradient(180deg, #3B82F6, #6366F1, #8B5CF6);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 10px;
+    box-shadow: 
+      inset 0 0 6px rgba(255,255,255,0.1),
+      0 0 4px rgba(59,130,246,0.5),
+      0 0 8px rgba(99,102,241,0.35),
+      0 0 12px rgba(139,92,246,0.25);
+    
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-image: linear-gradient(180deg, #60A5FA, #818CF8, #A78BFA);
+    /* Removing the border allows the thumb to fill the entire 8px track */
+    border: 0px solid transparent;
+    box-shadow: 
+      inset 0 0 8px rgba(255,255,255,0.2),
+      0 0 6px rgba(59,130,246,0.7),
+      0 0 10px rgba(99,102,241,0.5),
+      0 0 14px rgba(139,92,246,0.4);
+  }
+}
+
+@keyframes scrollbarPulse {
+  0%, 100% {
+    box-shadow: 
+      inset 0 0 6px rgba(255,255,255,0.1),
+      0 0 4px rgba(59,130,246,0.5),
+      0 0 8px rgba(99,102,241,0.35),
+      0 0 12px rgba(139,92,246,0.25);
+  }
+  50% {
+    box-shadow: 
+      inset 0 0 8px rgba(255,255,255,0.15),
+      0 0 6px rgba(59,130,246,0.7),
+      0 0 10px rgba(99,102,241,0.5),
+      0 0 16px rgba(139,92,246,0.4);
+  }
+}
+
+/* High Refresh Rate (144Hz/120fps) Performance & Responsiveness Optimizations */
+@keyframes gpuBarGrow {
+  0% {
+    transform: scaleX(0);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+.animate-bar-grow {
+  transform-origin: left !important;
+  animation: gpuBarGrow 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  will-change: transform !important;
+  backface-visibility: hidden !important;
+  transform: translateZ(0);
+}
+
+.animate-bar-grow-delayed {
+  transform-origin: left !important;
+  animation: gpuBarGrow 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards !important;
+  will-change: transform !important;
+  backface-visibility: hidden !important;
+  transform: translateZ(0);
+}
+
+.gpu-accelerated {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform, opacity;
+}
+
+/* Force hardware acceleration for all interactive elements and layout wrappers */
+main, video, canvas, select, button, .recharts-wrapper {
+  transform: translate3d(0,0,0) !important;
+  backface-visibility: hidden !important;
+  perspective: 1000px !important;
+}
+
+/* Smooth out scrolling rendering for high-frequency displays */
+html, body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Minimize heavy paint/repaint effects on high-refresh hover events */
+.transition-transform {
+  will-change: transform;
+}
+
+/* Enable content-visibility to skip rendering of off-screen components */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 100px 500px;
+}
+
+/* Bar Chart Percentage Text Precision Alignment */
+.bg-emerald-500, .bg-yellow-500, .bg-rose-500, .bg-red-500, .bg-blue-500, .bg-emerald-600, .bg-amber-500 {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+}
+
+.bg-emerald-500 span, .bg-yellow-500 span, .bg-rose-500 span, .bg-red-500 span, .bg-blue-500 span, .bg-emerald-600 span, .bg-amber-500 span {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  height: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: center !important;
+}
+
+/* Print & PDF Export Page Break and Layout Rules */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  @page page-landscape {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  main, aside, nav, header, #dashboard-main-scroll, .preview-container {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    transform: none !important;
+  }
+
+  aside, nav, header, .print\:hidden, .no-print {
+    display: none !important;
+  }
+
+  .print-page, .word-page {
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Prevent awkward splits inside cards, charts, sections, and tables */
+  section, article, table, tr, .card, .chart-container, .recharts-wrapper, .recharts-surface, .keep-together {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Maintain consistent chart proportions and fonts in print */
+  .recharts-responsive-container {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .recharts-text, svg text, .recharts-surface text {
+    font-family: 'Poppins', var(--font-sans), sans-serif !important;
+  }
+}
+
+/* Page Break Utility Classes */
+.break-before-page {
+  page-break-before: always !important;
+  break-before: page !important;
+}
+
+.break-after-page {
+  page-break-after: always !important;
+  break-after: page !important;
+}
+
+.avoid-page-break {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+
+

@@ -1,0 +1,12 @@
+{
+  "name": "Sistem Survei Budaya Keselamatan Pasien",
+  "description": "Sistem survei budaya keselamatan pasien rumah sakit berbasis kuesioner standar AHRQ SOPS 2.0 dengan analisis grafik dinamis, laporan detail, dan multi-role access.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

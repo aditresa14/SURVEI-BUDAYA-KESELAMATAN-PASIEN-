@@ -398,10 +398,11 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
     try {
       const { data, error } = await supabase
         .from('ahrq_surveys')
-        .select('*')
+        .select('id, tanggal_input, jumlah_responden, created_at, dimensi_scores')
         .eq('nama_rs', '_LINK_CONFIG_')
         .eq('unit_kerja', identifier)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(1);
       
       if (!error && data && data.length > 0) {
         const latest = data[0];

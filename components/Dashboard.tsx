@@ -96,7 +96,7 @@ export default function Dashboard({
   const [surveyToDelete, setSurveyToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [notification, setNotification] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [selectedRsFilter, setSelectedRsFilter] = useState<'all' | 'admin' | string>('admin');
+  const [selectedRsFilter, setSelectedRsFilter] = useState<'all' | 'admin' | string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('Semua Tahun');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -109,27 +109,40 @@ export default function Dashboard({
     }
   }, [notification]);
 
-  // SWR for real-time survey synchronization with background polling
+  // SWR for survey synchronization (optimized without aggressive polling to minimize Supabase egress)
   const { data: surveys = [], mutate, isLoading: surveysLoading } = useSWR(
     role === 'admin' ? 'ahrq_surveys_all' : ['ahrq_surveys', hospitalId || identifier],
     () => getSurveys(role === 'admin' ? undefined : (hospitalId || identifier)),
     {
-      refreshInterval: 3000
+      revalidateOnFocus: false,
+      revalidateIfStale: false,
+      revalidateOnReconnect: true,
+      dedupingInterval: 10000
     }
   );
 
-  // SWR for real-time hospital accounts with background polling
+  // SWR for hospital accounts (cached, no aggressive polling)
   const { data: accounts = [], mutate: mutateAccounts } = useSWR(
     'hospital_accounts',
     getHospitalAccounts,
-    { refreshInterval: 5000 }
+    {
+      revalidateOnFocus: false,
+      revalidateIfStale: false,
+      revalidateOnReconnect: true,
+      dedupingInterval: 30000
+    }
   );
 
-  // SWR for real-time benchmark requests (disabled for Admin Utama to respect data privacy)
+  // SWR for benchmark requests (disabled for Admin Utama to respect data privacy)
   const { data: benchmarkRequests = [], mutate: mutateBenchmarkRequests } = useSWR(
     role === 'admin' ? null : ['ahrq_benchmark_requests', hospitalId || identifier],
     () => getBenchmarkRequests(hospitalId || identifier),
-    { refreshInterval: 3000 }
+    {
+      revalidateOnFocus: false,
+      revalidateIfStale: false,
+      revalidateOnReconnect: true,
+      dedupingInterval: 15000
+    }
   );
 
   // Benchmark notification badge: ONLY target hospital receives notification!
@@ -699,8 +712,8 @@ export default function Dashboard({
                     onChange={(e) => setSelectedRsFilter(e.target.value)}
                     className="w-full md:w-[280px] bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer shadow-xs"
                   >
-                    <option value="admin">Administrator Pusat (Hanya Data Saya)</option>
                     <option value="all">Semua Rumah Sakit (Data Gabungan)</option>
+                    <option value="admin">Administrator Pusat (Hanya Data Saya)</option>
                     {accounts.map((acc) => (
                       <option key={acc.id} value={acc.username}>
                         {acc.namaRs} ({acc.username})

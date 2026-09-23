@@ -304,11 +304,9 @@ export default function LaporanTab({
     };
 
     fetchTargetData();
-    const interval = setInterval(fetchTargetData, 5000); // Poll for realtime updates
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
     };
   }, [selectedBenchmarkId, hospitalId, identifier]);
 

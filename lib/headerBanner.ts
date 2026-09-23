@@ -144,7 +144,7 @@ export async function saveHeaderImage(
           .from('dashboard')
           .upload(storagePath, blob, {
             contentType: mimeType,
-            cacheControl: '3600',
+            cacheControl: '31536000, immutable',
             upsert: false
           });
 

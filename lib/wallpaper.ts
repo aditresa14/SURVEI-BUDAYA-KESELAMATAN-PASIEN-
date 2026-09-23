@@ -144,7 +144,7 @@ export async function saveWallpaper(
           .from('wallpapers')
           .upload(storagePath, blob, {
             contentType: mimeType,
-            cacheControl: '3600',
+            cacheControl: '31536000, immutable',
             upsert: false
           });
 

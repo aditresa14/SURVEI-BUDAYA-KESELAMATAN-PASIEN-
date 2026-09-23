@@ -223,11 +223,77 @@ export function calculateOverallScore(submission: Partial<SurveySubmission>): nu
   return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
 }
 
-// 1. Fetch all surveys (strictly from Supabase, no localStorage)
+// In-memory cache & Promise deduplication for surveys
+const surveysCache = new Map<string, { data: SurveyData[]; expiry: number }>();
+const inFlightSurveys = new Map<string, Promise<SurveyData[]>>();
+const SURVEYS_CACHE_TTL = 30 * 1000; // 30 seconds cache
+
+export function invalidateSurveysCache(hospitalId?: string) {
+  if (hospitalId) {
+    surveysCache.delete(hospitalId.toLowerCase());
+    surveysCache.delete('admin');
+    surveysCache.delete('__all__');
+  } else {
+    surveysCache.clear();
+  }
+}
+
+// In-memory cache & Promise deduplication for hospital accounts
+let cachedHospitalAccounts: { data: HospitalAccount[]; expiry: number } | null = null;
+let inFlightHospitalAccounts: Promise<HospitalAccount[]> | null = null;
+const ACCOUNTS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes cache
+
+export function invalidateHospitalAccountsCache() {
+  cachedHospitalAccounts = null;
+}
+
+// 1. Fetch all surveys (strictly from Supabase, optimized with server-side SQL filters & in-memory cache)
 export async function getSurveys(hospitalId?: string): Promise<SurveyData[]> {
-  const supabase = getSupabaseClient();
-  if (supabase) {
+  const cacheKey = (hospitalId || '__all__').toLowerCase().trim();
+
+  // 1. Check in-memory cache
+  const cached = surveysCache.get(cacheKey);
+  if (cached && cached.expiry > Date.now()) {
+    return cached.data;
+  }
+
+  // 2. Promise deduplication: reuse in-flight promise if an identical request is already running
+  const pending = inFlightSurveys.get(cacheKey);
+  if (pending) {
+    return pending;
+  }
+
+  const fetchTask = (async (): Promise<SurveyData[]> => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return [];
+
     try {
+      const isSpecificHospital = Boolean(hospitalId && hospitalId !== 'admin' && hospitalId !== '__all__');
+      let uuid = hospitalId || '';
+      let username = hospitalId || '';
+      let hospitalNameResolved = hospitalId || '';
+
+      if (isSpecificHospital) {
+        // Resolve target hospital account identifiers (UUID, username, and nama_rs)
+        try {
+          const accounts = await getHospitalAccounts();
+          if (accounts && accounts.length > 0) {
+            const acc = accounts.find((a: any) => 
+              a.id === hospitalId || 
+              a.username?.toLowerCase() === hospitalId?.toLowerCase() || 
+              (a.namaRs && a.namaRs.toLowerCase() === hospitalId?.toLowerCase())
+            );
+            if (acc) {
+              uuid = acc.id;
+              username = acc.username;
+              hospitalNameResolved = acc.namaRs || hospitalId!;
+            }
+          }
+        } catch (accErr) {
+          console.warn("Account lookup in getSurveys warning:", accErr);
+        }
+      }
+
       let allData: any[] = [];
       let page = 0;
       const limit = 1000;
@@ -235,11 +301,31 @@ export async function getSurveys(hospitalId?: string): Promise<SurveyData[]> {
       let fetchError = null;
 
       while (hasMore) {
-        const { data, error } = await supabase
+        let query = supabase
           .from('ahrq_surveys')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .range(page * limit, (page + 1) * limit - 1);
+          .select('id, nama_rs, unit_kerja, jumlah_responden, tanggal_input, dimensi_scores, created_at')
+          .order('created_at', { ascending: false });
+
+        if (isSpecificHospital) {
+          // Construct server-side SQL WHERE filter to only transfer rows matching this hospital!
+          const orConditions: string[] = [];
+          if (hospitalNameResolved) {
+            orConditions.push(`nama_rs.eq."${hospitalNameResolved}"`);
+          }
+          if (uuid) {
+            orConditions.push(`dimensi_scores->>hospital_id.eq.${uuid}`);
+            orConditions.push(`dimensi_scores->>user_id.eq.${uuid}`);
+          }
+          if (username) {
+            orConditions.push(`dimensi_scores->>username.eq.${username}`);
+            orConditions.push(`dimensi_scores->>user_id.eq.${username}`);
+          }
+          if (orConditions.length > 0) {
+            query = query.or(orConditions.join(','));
+          }
+        }
+
+        const { data, error } = await query.range(page * limit, (page + 1) * limit - 1);
 
         if (error) {
           fetchError = error;
@@ -261,73 +347,54 @@ export async function getSurveys(hospitalId?: string): Promise<SurveyData[]> {
       if (!fetchError && allData) {
         const allSurveys = allData.map(mapToSurveyData);
 
-        if (!hospitalId || hospitalId === 'admin') {
-          return allSurveys;
-        }
+        let finalSurveys = allSurveys;
+        if (isSpecificHospital) {
+          const tUuidLower = (uuid || '').toLowerCase();
+          const tUsernameLower = (username || '').toLowerCase();
+          const tNameLower = (hospitalNameResolved || '').toLowerCase();
+          const inputIdLower = (hospitalId || '').toLowerCase();
 
-        // Resolve target hospital account identifiers (UUID, username, and nama_rs)
-        let uuid = hospitalId;
-        let username = hospitalId;
-        let hospitalNameResolved = hospitalId;
+          finalSurveys = allSurveys.filter((s: any) => {
+            if (!s) return false;
+            const hId = ((s.dimensiScores as any)?.hospital_id || (s as any).hospital_id || '').toString().toLowerCase();
+            const uId = ((s.dimensiScores as any)?.user_id || (s.dimensiScores as any)?.username || (s as any).user_id || '').toString().toLowerCase();
+            const cBy = ((s.dimensiScores as any)?.created_by || (s as any).created_by || '').toString().toLowerCase();
+            const rsName = (s.namaRs || (s.dimensiScores as any)?.hospital_name || '').toString().toLowerCase();
 
-        try {
-          const { data: accounts } = await supabase
-            .from('hospital_accounts')
-            .select('id, username, nama_rs');
-
-          if (accounts && accounts.length > 0) {
-            const acc = accounts.find((a: any) => 
-              a.id === hospitalId || 
-              a.username === hospitalId || 
-              (a.nama_rs && a.nama_rs.toLowerCase() === hospitalId.toLowerCase())
+            return (
+              hId === tUuidLower || hId === tUsernameLower || hId === inputIdLower ||
+              uId === tUuidLower || uId === tUsernameLower || uId === inputIdLower ||
+              cBy === tUuidLower || cBy === tUsernameLower || cBy === inputIdLower ||
+              rsName === tNameLower || rsName === inputIdLower ||
+              (s.id && s.id.toString().toLowerCase() === inputIdLower)
             );
-            if (acc) {
-              uuid = acc.id;
-              username = acc.username;
-              hospitalNameResolved = acc.nama_rs || hospitalId;
-            }
-          }
-        } catch (accErr) {
-          console.warn("Account lookup in getSurveys warning:", accErr);
+          });
         }
 
-        const tUuidLower = (uuid || '').toLowerCase();
-        const tUsernameLower = (username || '').toLowerCase();
-        const tNameLower = (hospitalNameResolved || '').toLowerCase();
-        const inputIdLower = (hospitalId || '').toLowerCase();
-
-        return allSurveys.filter((s: any) => {
-          if (!s) return false;
-          const hId = ((s.dimensiScores as any)?.hospital_id || (s as any).hospital_id || '').toString().toLowerCase();
-          const uId = ((s.dimensiScores as any)?.user_id || (s.dimensiScores as any)?.username || (s as any).user_id || '').toString().toLowerCase();
-          const cBy = ((s.dimensiScores as any)?.created_by || (s as any).created_by || '').toString().toLowerCase();
-          const rsName = (s.namaRs || (s.dimensiScores as any)?.hospital_name || '').toString().toLowerCase();
-
-          return (
-            hId === tUuidLower || hId === tUsernameLower || hId === inputIdLower ||
-            uId === tUuidLower || uId === tUsernameLower || uId === inputIdLower ||
-            cBy === tUuidLower || cBy === tUsernameLower || cBy === inputIdLower ||
-            rsName === tNameLower || rsName === inputIdLower ||
-            (s.id && s.id.toString().toLowerCase() === inputIdLower)
-          );
-        });
+        // Cache result
+        surveysCache.set(cacheKey, { data: finalSurveys, expiry: Date.now() + SURVEYS_CACHE_TTL });
+        return finalSurveys;
       }
 
       if (fetchError) {
-        if (fetchError.message?.includes('Failed to fetch') || fetchError.details?.includes('Failed to fetch')) {
-          console.warn("Supabase ahrq_surveys query failed (Failed to fetch).");
-          return [];
+        if (!fetchError.message?.includes('Failed to fetch') && !fetchError.details?.includes('Failed to fetch')) {
+          console.warn("Supabase ahrq_surveys query failed:", fetchError.message || fetchError);
         }
-        console.warn("Supabase ahrq_surveys query failed:", fetchError.message || fetchError);
       }
     } catch (e: any) {
       if (!e?.message?.includes('Failed to fetch') && !e?.details?.includes('Failed to fetch')) {
         console.error("Supabase ahrq_surveys exception:", e);
       }
     }
-  }
+    return [];
+  })();
 
-  return [];
+  inFlightSurveys.set(cacheKey, fetchTask);
+  try {
+    return await fetchTask;
+  } finally {
+    inFlightSurveys.delete(cacheKey);
+  }
 }
 
 export function convertIndoDateToISO(indoDate: string): string {
@@ -393,6 +460,7 @@ export async function saveSurvey(
             .select();
 
           if (!error && data && data.length > 0) {
+            invalidateSurveysCache();
             return mapToSurveyData(data[0]);
           }
           if (error) {
@@ -440,6 +508,9 @@ export async function deleteSurvey(id: string): Promise<void> {
         throw new Error(`Gagal menghapus survei dari database Supabase: ${error.message}`);
       }
 
+      // Invalidate surveys cache
+      invalidateSurveysCache();
+
       // 2. Safely attempt to clean up any related survey_submissions (prevent orphan data)
       try {
         await supabase
@@ -469,27 +540,44 @@ export async function deleteSurvey(id: string): Promise<void> {
   }
 }
 
-// 3. Fetch hospital accounts (strictly from Supabase, no localStorage)
+// 3. Fetch hospital accounts (strictly from Supabase, optimized with in-memory caching)
 export async function getHospitalAccounts(): Promise<HospitalAccount[]> {
-  const supabase = getSupabaseClient();
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('hospital_accounts')
-        .select('*');
-
-      if (!error && data) {
-        return data.map(mapToHospitalAccount);
-      }
-      if (error && error.code !== 'PGRST125' && error.code !== '42P01') {
-        console.warn("Supabase hospital_accounts query failed:", error);
-      }
-    } catch (e) {
-      console.error("Supabase hospital_accounts exception:", e);
-    }
+  if (cachedHospitalAccounts && cachedHospitalAccounts.expiry > Date.now()) {
+    return cachedHospitalAccounts.data;
+  }
+  if (inFlightHospitalAccounts) {
+    return inFlightHospitalAccounts;
   }
 
-  return [];
+  const fetchPromise = (async (): Promise<HospitalAccount[]> => {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('hospital_accounts')
+          .select('*');
+
+        if (!error && data) {
+          const mapped = data.map(mapToHospitalAccount);
+          cachedHospitalAccounts = { data: mapped, expiry: Date.now() + ACCOUNTS_CACHE_TTL };
+          return mapped;
+        }
+        if (error && error.code !== 'PGRST125' && error.code !== '42P01') {
+          console.warn("Supabase hospital_accounts query failed:", error);
+        }
+      } catch (e) {
+        console.error("Supabase hospital_accounts exception:", e);
+      }
+    }
+    return [];
+  })();
+
+  inFlightHospitalAccounts = fetchPromise;
+  try {
+    return await fetchPromise;
+  } finally {
+    inFlightHospitalAccounts = null;
+  }
 }
 
 // 4. Create hospital account in Supabase (no localStorage)
@@ -530,8 +618,9 @@ export async function getEmailNotifications(): Promise<EmailNotification[]> {
     try {
       const { data, error } = await supabase
         .from('email_notifications')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('id, to_email, subject, body, type, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
 
       if (!error && data) {
         return data as EmailNotification[];
@@ -568,8 +657,9 @@ export async function getAccountAuditLogs(): Promise<AccountAuditLog[]> {
     try {
       const { data, error } = await supabase
         .from('account_audit_logs')
-        .select('*')
-        .order('timestamp', { ascending: false });
+        .select('id, hospital_id, hospital_name, action, action_label, performed_by, timestamp, reason')
+        .order('timestamp', { ascending: false })
+        .limit(100);
 
       if (!error && data) {
         logs = data as AccountAuditLog[];
@@ -691,6 +781,8 @@ export async function updateHospitalAccountStatus(
     const updatedAccount = data && data.length > 0 
       ? mapToHospitalAccount(data[0])
       : { ...originalAccount, ...updateData };
+
+    invalidateHospitalAccountsCache();
 
     // Record audit log for status updates
     let actionType: AccountAuditLog['action'] = 'approved';
@@ -830,6 +922,9 @@ export async function deleteHospitalAccountPermanently(id: string, performedBy: 
     }
   }
 
+  invalidateHospitalAccountsCache();
+  invalidateSurveysCache();
+
   await addAccountAuditLog({
     hospital_id: id,
     hospital_name: rsName || id,
@@ -922,6 +1017,7 @@ export async function updateHospitalProfile(id: string, updates: Partial<Hospita
         
       if (!error) {
         if (data && data.length > 0) {
+          invalidateHospitalAccountsCache();
           return mapToHospitalAccount(data[0]);
         }
         throw new Error("Data tidak ditemukan setelah diperbarui.");
@@ -1039,6 +1135,8 @@ export async function createHospitalAccount(account: Omit<HospitalAccount, 'id'>
         ? mapToHospitalAccount(data[0])
         : mapToHospitalAccount(dbRow);
 
+      invalidateHospitalAccountsCache();
+
       // Send Email Notification automatically to the Administrator
       const adminEmailSubject = `🔔 Pendaftaran Akun RS Baru Menunggu Persetujuan: ${newAccount.namaRs}`;
       const adminEmailBody = `
@@ -1078,15 +1176,17 @@ Silakan masuk ke Dashboard Admin Utama untuk menyetujui atau menolak permohonan 
 // Keep existing SurveySubmission helpers for backward compatibility with deleted/unused components
 export async function getSubmissions(hospitalId?: string): Promise<SurveySubmission[]> {
   const supabase = getSupabaseClient();
+  const submissionColumns = 'id, rs_id, created_at, bagian_a, bagian_b, bagian_c, bagian_d, bagian_e, bagian_f, bagian_g, bagian_h, skor_a, skor_b, skor_c, skor_d, skor_f, skor_keseluruhan, hospital_id, user_id, created_by, hospital_name';
   if (supabase) {
     try {
       if (hospitalId && hospitalId !== 'admin') {
         try {
           const { data, error } = await supabase
             .from('survey_submissions')
-            .select('*')
+            .select(submissionColumns)
             .or(`hospital_id.eq.${hospitalId},user_id.eq.${hospitalId},created_by.eq.${hospitalId},rs_id.eq.${hospitalId}`)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(200);
 
           if (!error && data) {
             return data as SurveySubmission[];
@@ -1105,9 +1205,10 @@ export async function getSubmissions(hospitalId?: string): Promise<SurveySubmiss
           // Fallback to only rs_id (always exists)
           const { data, error } = await supabase
             .from('survey_submissions')
-            .select('*')
+            .select(submissionColumns)
             .eq('rs_id', hospitalId)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(200);
 
           if (!error && data) {
             return data as SurveySubmission[];
@@ -1117,8 +1218,9 @@ export async function getSubmissions(hospitalId?: string): Promise<SurveySubmiss
       } else {
         const { data, error } = await supabase
           .from('survey_submissions')
-          .select('*')
-          .order('created_at', { ascending: false });
+          .select(submissionColumns)
+          .order('created_at', { ascending: false })
+          .limit(200);
 
         if (!error && data) {
           return data as SurveySubmission[];
@@ -1485,22 +1587,13 @@ export async function updateSurveyUnitName(rsName: string, oldName: string, newN
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
-      // Find all surveys for this hospital with the old unit name
-      const { data, error } = await supabase
+      await supabase
         .from('ahrq_surveys')
-        .select('*')
+        .update({ unit_kerja: newName })
         .eq('nama_rs', rsName)
         .eq('unit_kerja', oldName);
-        
-      if (!error && data && data.length > 0) {
-        for (const row of data) {
-          // Keep raw answers intact, just update the top level unit_kerja which is used for grouping
-          await supabase
-            .from('ahrq_surveys')
-            .update({ unit_kerja: newName })
-            .eq('id', row.id);
-        }
-      }
+
+      invalidateSurveysCache();
     } catch (e) {
       console.error("Failed to update survey unit names", e);
     }
@@ -1713,16 +1806,22 @@ export interface BenchmarkAuditLog {
 const LOCAL_BENCHMARK_REQUESTS_KEY = 'ahrq_benchmark_requests_v1';
 const LOCAL_BENCHMARK_AUDIT_LOGS_KEY = 'ahrq_benchmark_audit_logs_v1';
 
-export async function getRawBenchmarkAuditLogsInternal(): Promise<BenchmarkAuditLog[]> {
+export async function getRawBenchmarkAuditLogsInternal(hospitalId?: string): Promise<BenchmarkAuditLog[]> {
   const supabase = getSupabaseClient();
   let logs: BenchmarkAuditLog[] = [];
 
   if (supabase) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('benchmark_audit_logs')
-        .select('*')
+        .select('id, request_id, requester_id, requester_name, target_id, target_name, action, action_label, performed_by, timestamp, reason')
         .order('timestamp', { ascending: false });
+
+      if (hospitalId && hospitalId !== 'admin') {
+        query = query.or(`requester_id.eq.${hospitalId},target_id.eq.${hospitalId},requester_name.ilike.${hospitalId},target_name.ilike.${hospitalId}`);
+      }
+
+      const { data, error } = await query.limit(50);
 
       if (!error && data) {
         logs = data as BenchmarkAuditLog[];
@@ -1761,7 +1860,7 @@ export async function getBenchmarkAuditLogs(hospitalId?: string): Promise<Benchm
     return [];
   }
 
-  const logs = await getRawBenchmarkAuditLogsInternal();
+  const logs = await getRawBenchmarkAuditLogsInternal(hospitalId);
 
   // Strict hospital privacy filter: only logs involving this hospital
   return logs.filter(l => 
@@ -1816,16 +1915,22 @@ export async function addBenchmarkAuditLog(logData: Omit<BenchmarkAuditLog, 'id'
   return newLog;
 }
 
-export async function getRawBenchmarkRequestsInternal(): Promise<BenchmarkRequest[]> {
+export async function getRawBenchmarkRequestsInternal(hospitalId?: string): Promise<BenchmarkRequest[]> {
   const supabase = getSupabaseClient();
   let items: BenchmarkRequest[] = [];
 
   if (supabase) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('benchmark_requests')
-        .select('*')
+        .select('id, requester_id, requester_name, requester_email, requester_phone, target_id, target_name, target_email, target_phone, data_type, expires_at, status, reason, created_at, updated_at, rejection_reason, approved_at')
         .order('created_at', { ascending: false });
+
+      if (hospitalId && hospitalId !== 'admin') {
+        query = query.or(`requester_id.eq.${hospitalId},target_id.eq.${hospitalId},requester_name.ilike.${hospitalId},target_name.ilike.${hospitalId}`);
+      }
+
+      const { data, error } = await query.limit(100);
 
       if (!error && data) {
         items = data as BenchmarkRequest[];
@@ -1864,7 +1969,7 @@ export async function getBenchmarkRequests(hospitalId?: string): Promise<Benchma
     return [];
   }
 
-  const items = await getRawBenchmarkRequestsInternal();
+  const items = await getRawBenchmarkRequestsInternal(hospitalId);
 
   // Strict hospital privacy filter: only requests involving this hospital
   return items.filter(r => 
@@ -2127,7 +2232,7 @@ export async function getPengesahanConfig(hospitalIdOrUsername?: string, current
       // 1. Try hospital_accounts table by ID or username
       const { data: accData } = await supabase
         .from('hospital_accounts')
-        .select('*')
+        .select('id, username, pengesahan_config')
         .or(`id.eq.${hospitalIdOrUsername},username.ilike.${hospitalIdOrUsername}`);
 
       if (accData && accData.length > 0 && accData[0].pengesahan_config) {
@@ -2491,7 +2596,7 @@ export async function verifyResetTokenAndResetPassword(identifier: string, token
   // Check ahrq_surveys
   if (!storedTokenData) {
     try {
-      const { data, error } = await supabase.from('ahrq_surveys').select('*').eq('id', `PWDRESET_${account.id}`).maybeSingle();
+      const { data, error } = await supabase.from('ahrq_surveys').select('dimensi_scores').eq('id', `PWDRESET_${account.id}`).maybeSingle();
       if (data && data.dimensi_scores) {
         storedTokenData = typeof data.dimensi_scores === 'string'
           ? JSON.parse(data.dimensi_scores)

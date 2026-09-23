@@ -136,7 +136,7 @@ export async function saveLogo(
           .from('logos')
           .upload(storagePath, blob, {
             contentType: mimeType,
-            cacheControl: '3600',
+            cacheControl: '31536000, immutable',
             upsert: false
           });
 

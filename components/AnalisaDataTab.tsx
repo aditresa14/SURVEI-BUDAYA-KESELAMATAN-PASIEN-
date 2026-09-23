@@ -440,10 +440,7 @@ export default function AnalisaDataTab({ surveys, role, identifier, namaRs, hosp
       fetchTargetSurveys();
       setIsLoadingTargetSurveys(false);
 
-      // Realtime polling every 5s for live updates
-      const interval = setInterval(fetchTargetSurveys, 5000);
-
-      // Supabase realtime channel subscription if connected
+      // Supabase realtime channel subscription if connected (event-driven, no egress-wasting interval polling)
       const supabase = getSupabaseClient();
       let channel: any = null;
       if (supabase) {
@@ -457,7 +454,6 @@ export default function AnalisaDataTab({ surveys, role, identifier, namaRs, hosp
 
       return () => {
         isMounted = false;
-        clearInterval(interval);
         if (channel && supabase) {
           supabase.removeChannel(channel);
         }

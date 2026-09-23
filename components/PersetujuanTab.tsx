@@ -79,16 +79,22 @@ export default function PersetujuanTab({ accounts, onMutateAccounts }: Persetuju
   const [errorMsg, setErrorMsg] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // SWR for Real-time Account Audit Logs
+  // SWR for Account Audit Logs (optimized without aggressive polling)
   const { data: auditLogs = [], mutate: mutateAuditLogs } = useSWR('account_audit_logs', getAccountAuditLogs, {
     fallbackData: [],
-    refreshInterval: 3000
+    revalidateOnFocus: false,
+    revalidateIfStale: false,
+    revalidateOnReconnect: true,
+    dedupingInterval: 15000
   });
 
-  // SWR for Real-time Email Logs
+  // SWR for Email Logs (optimized without aggressive polling)
   const { data: emailLogs = [], mutate: mutateEmails } = useSWR('email_logs', getEmailNotifications, {
     fallbackData: [],
-    refreshInterval: 3000
+    revalidateOnFocus: false,
+    revalidateIfStale: false,
+    revalidateOnReconnect: true,
+    dedupingInterval: 15000
   });
 
   const sqlMigration = `ALTER TABLE public.hospital_accounts ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'Pending';

@@ -310,12 +310,15 @@ const getProfExperienceAnalysis = (data: { name: string; value: number; percenta
 };
 
 export default function DashboardTable({ role, namaRs, identifier, hospitalId, selectedRsFilter, accounts }: DashboardTableProps) {
-  // SWR for automatic realtime data synchronization
+  // SWR for data synchronization (optimized with caching, no aggressive 3s polling)
   const { data: surveys = [], error, mutate, isValidating } = useSWR(
     role === 'admin' ? 'ahrq_surveys_all' : ['ahrq_surveys', hospitalId || identifier],
     () => getSurveys(role === 'admin' ? undefined : (hospitalId || identifier)),
     {
-      refreshInterval: 3000
+      revalidateOnFocus: false,
+      revalidateIfStale: false,
+      revalidateOnReconnect: true,
+      dedupingInterval: 10000
     }
   );
 
@@ -424,7 +427,7 @@ export default function DashboardTable({ role, namaRs, identifier, hospitalId, s
           if (s.namaRs.toLowerCase() !== namaRs.toLowerCase()) return false;
         }
       } else if (role === 'admin') {
-        const activeFilter = selectedRsFilter || 'admin';
+        const activeFilter = selectedRsFilter || 'all';
         if (activeFilter === 'admin') {
           const surveyUser = (s.dimensiScores as any)?.username;
           if (surveyUser) {

@@ -64,15 +64,34 @@ export function isSupabaseConnected(): boolean {
   return getSupabaseClient() !== null;
 }
 
+// In-memory cache for app_settings to prevent repeated heavy queries (e.g. Base64 wallpaper/banners)
+const appSettingsCache = new Map<string, { value: any; expiry: number }>();
+const APP_SETTINGS_TTL_MS = 5 * 60 * 1000; // 5 minutes cache
+
+export function clearAppSettingsCache(key?: string) {
+  if (key) {
+    appSettingsCache.delete(key);
+  } else {
+    appSettingsCache.clear();
+  }
+}
+
 export async function getAppSetting<T = any>(
   supabase: any,
   key: string
 ): Promise<T | null> {
   if (!supabase) return null;
+
+  // Check in-memory cache first
+  const cached = appSettingsCache.get(key);
+  if (cached && cached.expiry > Date.now()) {
+    return cached.value as T;
+  }
+
   try {
     const { data, error } = await supabase
       .from('app_settings')
-      .select('*')
+      .select('value')
       .eq('key', key)
       .order('updated_at', { ascending: false })
       .limit(1)
@@ -87,6 +106,8 @@ export async function getAppSetting<T = any>(
           // Plain string value
         }
       }
+      // Store in memory cache
+      appSettingsCache.set(key, { value: val, expiry: Date.now() + APP_SETTINGS_TTL_MS });
       return val as T;
     }
   } catch (e) {
@@ -102,6 +123,9 @@ export async function setAppSetting(
 ): Promise<void> {
   if (!supabase) return;
   const now = new Date().toISOString();
+
+  // Invalidate or update memory cache immediately
+  appSettingsCache.set(key, { value, expiry: Date.now() + APP_SETTINGS_TTL_MS });
 
   // Step 1: Check if a record with this key already exists
   try {
@@ -170,6 +194,7 @@ export async function deleteAppSetting(
   key: string
 ): Promise<void> {
   if (!supabase) return;
+  appSettingsCache.delete(key);
   try {
     const { error } = await supabase
       .from('app_settings')

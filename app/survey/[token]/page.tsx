@@ -28,7 +28,7 @@ export default function PublicSurveyPage() {
       try {
         const { data, error: fetchErr } = await supabase
           .from('ahrq_surveys')
-          .select('*')
+          .select('jumlah_responden, dimensi_scores')
           .eq('id', `LINK_CONFIG_${token}`)
           .single();
 

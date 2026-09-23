@@ -253,10 +253,10 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Fetch accounts to find matching record
+      // Fetch accounts to find matching record (optimized columns)
       const { data: accounts, error: accError } = await supabase
         .from('hospital_accounts')
-        .select('*');
+        .select('id, username, email_rs, nama_rs, kode_rs');
 
       if (accError || !accounts || accounts.length === 0) {
         return NextResponse.json(
@@ -379,10 +379,10 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Fetch accounts to find matching record
+      // Fetch accounts to find matching record (optimized columns)
       const { data: accounts, error: accError } = await supabase
         .from('hospital_accounts')
-        .select('*');
+        .select('id, username, email_rs, nama_rs, kode_rs');
 
       if (accError || !accounts || accounts.length === 0) {
         return NextResponse.json(

@@ -1,4 +1,4 @@
-import { SurveyData } from './db';
+import { SurveyData, isSurveyResponse } from './db';
 
 export const DIMENSI_INFO: { [key: string]: { nama: string; kode: string; totalPertanyaan: number; deskripsi: string; benchmarkMin: number; benchmarkMax: number } } = {
   d7: { nama: 'Komunikasi tentang Kesalahan', kode: 'D7', totalPertanyaan: 3, deskripsi: 'Seberapa sering staf diberi informasi tentang kesalahan yang terjadi di unit, dan mendiskusikan cara mencegahnya.', benchmarkMin: 47, benchmarkMax: 82 },
@@ -43,8 +43,8 @@ export function computeDimensionScores(targetSurveys: SurveyData[], masterBenchm
     let totalResponden = 0;
 
     targetSurveys.forEach(survey => {
-      // Exclude MASTER_BENCHMARK or LINK_CONFIG_ config rows
-      if (!survey || !survey.id || survey.id === 'MASTER_BENCHMARK' || survey.id.startsWith('LINK_CONFIG_') || survey.namaRs === '_LINK_CONFIG_') return;
+      // Exclude non-survey responses or config rows
+      if (!survey || !survey.id || !isSurveyResponse(survey)) return;
       totalResponden += survey.jumlahResponden || 1;
       const raw = (survey.dimensiScores as any)?._rawAnswers;
       if (raw) {

@@ -416,7 +416,7 @@ export default function Dashboard({
   }, [validSurveys, role, identifier, hospitalId, namaRs, selectedRsFilter, selectedYear]);
 
   // Statistics calculations
-  const totalRespondents = filteredSurveys.reduce((acc, curr) => acc + curr.jumlahResponden, 0);
+  const totalRespondents = filteredSurveys.reduce((acc, curr) => acc + (curr.jumlahResponden || 1), 0);
 
   // Grouped Unit summary data
   const unitsSummary = useMemo(() => {

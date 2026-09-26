@@ -545,7 +545,7 @@ export default function DashboardTable({ role, namaRs, identifier, hospitalId, s
     let total = 0;
 
     filteredSurveys.forEach(s => {
-      total++;
+      total += (s.jumlahResponden || 1);
       const raw = (s.dimensiScores as any)?._rawAnswers || {};
       const ansG = raw.ansG || {};
       const sId = s.id || '';

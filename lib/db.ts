@@ -85,21 +85,47 @@ export interface SurveySubmission {
 export const isSurveyResponse = (s: any): boolean => {
   if (!s || !s.id) return false;
   const idStr = String(s.id);
-  if (idStr.startsWith('LINK_CONFIG_') || 
-      idStr.startsWith('PENGESAHAN_') || 
-      idStr.startsWith('MASTER_') || 
-      idStr.startsWith('_MASTER_')) {
+  if (
+    idStr.startsWith('LINK_CONFIG_') || 
+    idStr.startsWith('PENGESAHAN_') || 
+    idStr.startsWith('MASTER_') || 
+    idStr.startsWith('_MASTER_') ||
+    idStr.startsWith('PWDRESET_') ||
+    idStr.startsWith('APP_SETTING_') ||
+    idStr.startsWith('CONFIG_')
+  ) {
     return false;
   }
-  if (s.unitKerja === 'PENGESAHAN_CONFIG' || s.unit_kerja === 'PENGESAHAN_CONFIG') {
+  const unit = s.unitKerja || s.unit_kerja || '';
+  if (
+    unit === 'PENGESAHAN_CONFIG' || 
+    unit === 'PASSWORD_RESET' ||
+    unit === 'BENCHMARK_AUDIT_LOGS' || 
+    unit === 'BENCHMARK_REQUESTS' ||
+    unit === 'APP_SETTING'
+  ) {
     return false;
   }
-  if (s.namaRs === '_LINK_CONFIG_' || s.nama_rs === '_LINK_CONFIG_' || s.namaRs === '_PENGESAHAN_CONFIG_') {
+  const nama = s.namaRs || s.nama_rs || '';
+  if (
+    nama === '_LINK_CONFIG_' || 
+    nama === '_PENGESAHAN_CONFIG_' || 
+    nama === '_MASTER_CONFIG_' ||
+    nama === 'SYSTEM_BENCHMARK' ||
+    nama === 'SYSTEM_BENCHMARK_INTERAKSI'
+  ) {
     return false;
   }
-  if ((idStr.startsWith('LINK_CONFIG_') || s.namaRs === '_LINK_CONFIG_' || s.nama_rs === '_LINK_CONFIG_') &&
+  if ((idStr.startsWith('LINK_CONFIG_') || nama === '_LINK_CONFIG_') &&
       s.dimensiScores && typeof s.dimensiScores === 'object' && 'token' in (s.dimensiScores as any)) {
     return false;
+  }
+  // Exclude password reset or non-survey token payloads that lack survey answers
+  if (s.dimensiScores && typeof s.dimensiScores === 'object') {
+    const ds = s.dimensiScores as any;
+    if (('accountId' in ds || 'token' in ds || 'email' in ds) && !ds._rawAnswers && !ds.d1) {
+      return false;
+    }
   }
   return true;
 };

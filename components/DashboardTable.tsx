@@ -495,7 +495,7 @@ export default function DashboardTable({
 
       return true;
     });
-  }, [surveys, role, namaRs, identifier, filterHospital, filterUnit, filterProfesi, filterJabatan, filterPeriod, filterTahun, selectedRsFilter, accounts]);
+  }, [surveys, role, namaRs, identifier, hospitalId, filterHospital, filterUnit, filterProfesi, filterJabatan, filterPeriod, filterTahun, selectedRsFilter, accounts]);
 
   // Calculate Positive Response Rates Compositely for each Dimension over all filtered surveys
   const calculatedDimensions = useMemo(() => {

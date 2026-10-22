@@ -8,6 +8,7 @@ import Dashboard from '../components/Dashboard';
 import { getWallpaper, WallpaperData } from '../lib/wallpaper';
 import { getLogo, LogoData } from '../lib/logo';
 import { getHeaderImage, HeaderImageData } from '../lib/headerBanner';
+import { getSurveys, getHospitalAccounts } from '../lib/db';
 
 export default function Home() {
   const [screen, setScreen] = useState<'welcome' | 'login' | 'register' | 'dashboard'>('welcome');
@@ -22,8 +23,12 @@ export default function Home() {
   // Keep list of registered hospitals in state so they persist during active session
   const [registeredHospitals, setRegisteredHospitals] = useState<Array<{ username: string; kodeRs: string; namaRs: string }>>([]);
 
-  // Load wallpaper, logo, and header image concurrently on mount
+  // Load wallpaper, logo, header image AND eagerly prefetch surveys + accounts concurrently on mount
   useEffect(() => {
+    // Eagerly warm up surveys and hospital accounts cache in the background while user is on Welcome/Login screen
+    getSurveys().catch(() => null);
+    getHospitalAccounts().catch(() => null);
+
     async function loadPreferences() {
       try {
         const [savedWallpaper, savedLogo, savedHeaderImage] = await Promise.all([

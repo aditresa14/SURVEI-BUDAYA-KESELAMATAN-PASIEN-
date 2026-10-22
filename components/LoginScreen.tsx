@@ -22,6 +22,8 @@ import bcrypt from 'bcryptjs';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   getHospitalAccounts, 
+  getCachedAccountsSync,
+  getSurveys,
   updateLastLogin, 
   requestHospitalPasswordReset, 
   verifyResetTokenAndResetPassword 
@@ -51,8 +53,8 @@ export default function LoginScreen({
   const [showRsPassword, setShowRsPassword] = useState(false);
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [error, setError] = useState('');
-  const [hospitals, setHospitals] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [hospitals, setHospitals] = useState<any[]>(() => getCachedAccountsSync() || []);
+  const [loading, setLoading] = useState(() => !getCachedAccountsSync());
 
   // Forgot Password modal state
   const [showForgotModal, setShowForgotModal] = useState(false);
@@ -162,6 +164,7 @@ export default function LoginScreen({
   };
 
   useEffect(() => {
+    getSurveys().catch(() => null);
     const loadHospitals = async () => {
       try {
         const data = await getHospitalAccounts();

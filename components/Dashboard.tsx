@@ -43,6 +43,8 @@ import {
   isSurveyResponse,
   invalidateSurveysCache,
   invalidateHospitalAccountsCache,
+  getCachedSurveysSync,
+  getCachedAccountsSync,
   isHospitalMatch,
   getSupabaseClient
 } from '../lib/db';
@@ -120,11 +122,13 @@ export default function Dashboard({
     }
   }, [notification]);
 
-  // SWR for survey synchronization - Realtime polling & focus revalidation
+  // SWR for survey synchronization - Instant 0ms fallbackData + Realtime polling & focus revalidation
   const { data: surveys = [], mutate, isLoading: surveysLoading } = useSWR(
     role === 'admin' ? 'ahrq_surveys_all' : ['ahrq_surveys', hospitalId || identifier],
     () => getSurveys(role === 'admin' ? undefined : (hospitalId || identifier)),
     {
+      fallbackData: getCachedSurveysSync(role === 'admin' ? undefined : (hospitalId || identifier)),
+      keepPreviousData: true,
       revalidateOnFocus: true,
       revalidateIfStale: true,
       revalidateOnReconnect: true,
@@ -133,11 +137,13 @@ export default function Dashboard({
     }
   );
 
-  // SWR for hospital accounts (realtime refreshed)
+  // SWR for hospital accounts (instant fallbackData + realtime refreshed)
   const { data: accounts = [], mutate: mutateAccounts } = useSWR(
     'hospital_accounts',
     getHospitalAccounts,
     {
+      fallbackData: getCachedAccountsSync(),
+      keepPreviousData: true,
       revalidateOnFocus: true,
       revalidateIfStale: true,
       revalidateOnReconnect: true,

@@ -365,8 +365,9 @@ export function invalidateHospitalAccountsCache() {
   cachedHospitalAccounts = null;
 }
 
-// 1. Fetch all surveys (strictly from Supabase, optimized with parallel pagination, server-side SQL filters & in-memory cache)
+// 1. Fetch all surveys (strictly from Supabase, optimized with parallel pagination and in-memory cache)
 export async function getSurveys(hospitalId?: string): Promise<SurveyData[]> {
+  const isSpecificHospital = Boolean(hospitalId && hospitalId !== 'admin' && hospitalId !== '__all__');
   const cacheKey = (hospitalId || '__all__').toLowerCase().trim();
 
   // 1. Check in-memory cache
@@ -375,114 +376,48 @@ export async function getSurveys(hospitalId?: string): Promise<SurveyData[]> {
     return cached.data;
   }
 
-  // 2. Check if __all__ is already cached - if so, RS queries can filter directly from it
+  // 2. Check if __all__ is already cached - if so, RS queries can filter directly from it in 0ms!
   const allCached = surveysCache.get('__all__');
-  const isSpecificHospital = Boolean(hospitalId && hospitalId !== 'admin' && hospitalId !== '__all__');
-
-  if (isSpecificHospital && allCached && allCached.expiry > Date.now()) {
-    try {
-      const accounts = await getHospitalAccounts();
-      const acc = accounts?.find((a: any) => 
-        a.id === hospitalId || 
-        a.username?.toLowerCase() === hospitalId?.toLowerCase() || 
-        (a.namaRs && a.namaRs.toLowerCase() === hospitalId?.toLowerCase())
-      );
-      const uuid = acc?.id || hospitalId;
-      const username = acc?.username || hospitalId;
-      const hospitalNameResolved = acc?.namaRs || hospitalId;
-      const filtered = allCached.data.filter((s: any) => isHospitalMatch(s, username, uuid, hospitalNameResolved));
-      surveysCache.set(cacheKey, { data: filtered, expiry: Date.now() + SURVEYS_CACHE_TTL });
-      return filtered;
-    } catch (e) {
-      // Fallback to network query
+  if (allCached && allCached.expiry > Date.now()) {
+    if (!isSpecificHospital) {
+      return allCached.data;
     }
+    const accounts = await getHospitalAccounts().catch(() => []);
+    const acc = accounts?.find((a: any) => 
+      a.id === hospitalId || 
+      a.username?.toLowerCase() === hospitalId?.toLowerCase() || 
+      (a.namaRs && a.namaRs.toLowerCase() === hospitalId?.toLowerCase())
+    );
+    const uuid = acc?.id || hospitalId;
+    const username = acc?.username || hospitalId;
+    const hospitalNameResolved = acc?.namaRs || hospitalId;
+    const filtered = allCached.data.filter((s: any) => isHospitalMatch(s, username, uuid, hospitalNameResolved, acc?.kodeRs));
+    surveysCache.set(cacheKey, { data: filtered, expiry: Date.now() + SURVEYS_CACHE_TTL });
+    return filtered;
   }
 
-  // 3. Promise deduplication: reuse in-flight promise if an identical request is already running
-  const pending = inFlightSurveys.get(cacheKey);
-  if (pending) {
-    return pending;
-  }
+  // 3. Promise deduplication on '__all__': always fetch the full dataset once!
+  let pendingAll = inFlightSurveys.get('__all__');
+  if (!pendingAll) {
+    pendingAll = (async (): Promise<SurveyData[]> => {
+      const supabase = getSupabaseClient();
+      if (!supabase) return [];
 
-  const fetchTask = (async (): Promise<SurveyData[]> => {
-    const supabase = getSupabaseClient();
-    if (!supabase) return [];
-
-    try {
-      let uuid = hospitalId || '';
-      let username = hospitalId || '';
-      let hospitalNameResolved = hospitalId || '';
-
-      if (isSpecificHospital) {
-        // Resolve target hospital account identifiers (UUID, username, and nama_rs)
-        try {
-          const accounts = await getHospitalAccounts();
-          if (accounts && accounts.length > 0) {
-            const acc = accounts.find((a: any) => 
-              a.id === hospitalId || 
-              a.username?.toLowerCase() === hospitalId?.toLowerCase() || 
-              (a.namaRs && a.namaRs.toLowerCase() === hospitalId?.toLowerCase())
-            );
-            if (acc) {
-              uuid = acc.id;
-              username = acc.username;
-              hospitalNameResolved = acc.namaRs || hospitalId!;
-            }
-          }
-        } catch (accErr) {
-          console.warn("Account lookup in getSurveys warning:", accErr);
-        }
-      }
-
-      const limit = 1000;
-      let allData: any[] = [];
-      let fetchError = null;
-
-      // Build query
-      const buildQuery = () => {
-        let q = supabase
-          .from('ahrq_surveys')
-          .select('id, nama_rs, unit_kerja, jumlah_responden, tanggal_input, dimensi_scores, created_at', { count: 'exact' })
-          .order('created_at', { ascending: false });
-
-        if (isSpecificHospital) {
-          const orConditions: string[] = [];
-          if (hospitalNameResolved) {
-            orConditions.push(`nama_rs.ilike."*${hospitalNameResolved}*"`);
-          }
-          if (uuid) {
-            orConditions.push(`dimensi_scores->>hospital_id.eq.${uuid}`);
-          }
-          if (username) {
-            orConditions.push(`dimensi_scores->>username.ilike."*${username}*"`);
-            orConditions.push(`nama_rs.ilike."*${username}*"`);
-          }
-          if (orConditions.length > 0) {
-            q = q.or(orConditions.join(','));
-          }
-        }
-        return q;
-      };
-
-      // Fetch first page and get total count
-      let { data: firstPageData, count, error: firstError } = await buildQuery().range(0, limit - 1);
-
-      // If specific hospital filter returned an error or 0 rows (e.g. syntax issue with or()), fallback to fetching without or()
-      if ((firstError || (isSpecificHospital && (!firstPageData || firstPageData.length === 0))) && isSpecificHospital) {
-        const fallback = await supabase
+      try {
+        const limit = 1000;
+        // Fetch first page and get total count
+        const { data: firstPageData, count, error: firstError } = await supabase
           .from('ahrq_surveys')
           .select('id, nama_rs, unit_kerja, jumlah_responden, tanggal_input, dimensi_scores, created_at', { count: 'exact' })
           .order('created_at', { ascending: false })
           .range(0, limit - 1);
-        firstPageData = fallback.data;
-        count = fallback.count;
-        firstError = fallback.error;
-      }
 
-      if (firstError) {
-        fetchError = firstError;
-      } else if (firstPageData) {
-        allData = [...firstPageData];
+        if (firstError) {
+          console.warn("Supabase ahrq_surveys query failed:", firstError.message || firstError);
+          return [];
+        }
+
+        let allData = firstPageData ? [...firstPageData] : [];
         const totalCount = count || allData.length;
 
         // If there are additional pages, fetch them in PARALLEL!
@@ -505,41 +440,38 @@ export async function getSurveys(hospitalId?: string): Promise<SurveyData[]> {
             }
           }
         }
-      }
 
-      if (!fetchError && allData && allData.length > 0) {
         const allSurveys = allData.map(mapToSurveyData);
-
-        let finalSurveys = allSurveys;
-        if (isSpecificHospital) {
-          finalSurveys = allSurveys.filter((s: any) => {
-            return isHospitalMatch(s, username, uuid, hospitalNameResolved);
-          });
-        }
-
-        // Cache result
-        surveysCache.set(cacheKey, { data: finalSurveys, expiry: Date.now() + SURVEYS_CACHE_TTL });
-        return finalSurveys;
-      }
-
-      if (fetchError) {
-        if (!fetchError.message?.includes('Failed to fetch') && !fetchError.details?.includes('Failed to fetch')) {
-          console.warn("Supabase ahrq_surveys query failed:", fetchError.message || fetchError);
-        }
-      }
-    } catch (e: any) {
-      if (!e?.message?.includes('Failed to fetch') && !e?.details?.includes('Failed to fetch')) {
+        surveysCache.set('__all__', { data: allSurveys, expiry: Date.now() + SURVEYS_CACHE_TTL });
+        return allSurveys;
+      } catch (e: any) {
         console.error("Supabase ahrq_surveys exception:", e);
+        return [];
       }
-    }
-    return [];
-  })();
+    })();
+    inFlightSurveys.set('__all__', pendingAll);
+  }
 
-  inFlightSurveys.set(cacheKey, fetchTask);
   try {
-    return await fetchTask;
+    const allSurveys = await pendingAll;
+    if (!isSpecificHospital) {
+      return allSurveys;
+    }
+
+    const accounts = await getHospitalAccounts().catch(() => []);
+    const acc = accounts?.find((a: any) => 
+      a.id === hospitalId || 
+      a.username?.toLowerCase() === hospitalId?.toLowerCase() || 
+      (a.namaRs && a.namaRs.toLowerCase() === hospitalId?.toLowerCase())
+    );
+    const uuid = acc?.id || hospitalId;
+    const username = acc?.username || hospitalId;
+    const hospitalNameResolved = acc?.namaRs || hospitalId;
+    const filtered = allSurveys.filter((s: any) => isHospitalMatch(s, username, uuid, hospitalNameResolved, acc?.kodeRs));
+    surveysCache.set(cacheKey, { data: filtered, expiry: Date.now() + SURVEYS_CACHE_TTL });
+    return filtered;
   } finally {
-    inFlightSurveys.delete(cacheKey);
+    inFlightSurveys.delete('__all__');
   }
 }
 

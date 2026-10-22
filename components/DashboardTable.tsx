@@ -31,7 +31,7 @@ import {
   MapPin
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RechartsTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { getSurveys, SurveyData, isSurveyResponse } from '../lib/db';
+import { getSurveys, SurveyData, isSurveyResponse, isHospitalMatch } from '../lib/db';
 import { computeDimensionScores, DIMENSI_INFO, DIMENSI_ITEMS } from '../lib/scoring';
 import DimensiDetailModal from './DimensiDetailModal';
 
@@ -59,6 +59,7 @@ interface DashboardTableProps {
   hospitalId?: string;
   selectedRsFilter?: string;
   accounts?: any[];
+  surveys?: SurveyData[];
 }
 
 const STAFF_GROUPS: { [key: string]: string[] } = {
@@ -309,19 +310,29 @@ const getProfExperienceAnalysis = (data: { name: string; value: number; percenta
   return `Distribusi lama kerja sesuai profesi didominasi oleh kelompok ${maxItem.name} sebesar ${maxItem.percentage}% (${maxItem.value} responden), mencerminkan kematangan tingkat keahlian dan kompetensi dalam pemberian asuhan keselamatan pasien.`;
 };
 
-export default function DashboardTable({ role, namaRs, identifier, hospitalId, selectedRsFilter, accounts }: DashboardTableProps) {
-  // SWR for data synchronization (realtime auto-refresh & focus revalidation)
-  const { data: surveys = [], error, mutate, isValidating } = useSWR(
-    role === 'admin' ? 'ahrq_surveys_all' : ['ahrq_surveys', hospitalId || identifier],
+export default function DashboardTable({ 
+  role, 
+  namaRs, 
+  identifier, 
+  hospitalId, 
+  selectedRsFilter, 
+  accounts,
+  surveys: propSurveys 
+}: DashboardTableProps) {
+  // SWR for data synchronization (skips redundant network fetch if surveys prop is passed from Dashboard)
+  const { data: fetchedSurveys = [], error, mutate, isValidating } = useSWR(
+    propSurveys ? null : (role === 'admin' ? 'ahrq_surveys_all' : ['ahrq_surveys', hospitalId || identifier]),
     () => getSurveys(role === 'admin' ? undefined : (hospitalId || identifier)),
     {
-      revalidateOnFocus: true,
-      revalidateIfStale: true,
-      revalidateOnReconnect: true,
-      refreshInterval: 6000, // Realtime polling every 6 seconds
-      dedupingInterval: 2000
+      revalidateOnFocus: false,
+      revalidateIfStale: false,
+      revalidateOnReconnect: false,
+      refreshInterval: 0, // Parent Dashboard manages refresh
+      dedupingInterval: 10000
     }
   );
+
+  const surveys = propSurveys || fetchedSurveys;
 
   // UI Interactive States
   const [searchQuery, setSearchQuery] = useState('');
@@ -421,12 +432,7 @@ export default function DashboardTable({ role, namaRs, identifier, hospitalId, s
       if (!isSurveyResponse(s)) return false;
       // 1. Hospital Filter (Admin has option, RS locked)
       if (role === 'rs') {
-        const surveyUser = (s.dimensiScores as any)?.username;
-        if (surveyUser) {
-          if (surveyUser.toLowerCase() !== identifier?.toLowerCase()) return false;
-        } else {
-          if (s.namaRs.toLowerCase() !== namaRs.toLowerCase()) return false;
-        }
+        if (!isHospitalMatch(s, identifier, hospitalId, namaRs)) return false;
       } else if (role === 'admin') {
         const activeFilter = selectedRsFilter || 'all';
         if (activeFilter === 'admin') {
@@ -445,44 +451,13 @@ export default function DashboardTable({ role, namaRs, identifier, hospitalId, s
             a.username?.toLowerCase() === activeFilter.toLowerCase() || 
             a.id === activeFilter
           );
-          const tUsername = (targetAcc?.username || activeFilter).toLowerCase().trim();
-          const tId = (targetAcc?.id || '').toLowerCase().trim();
-          const tName = (targetAcc?.namaRs || '').toLowerCase().trim();
-          const tKode = (targetAcc?.kodeRs || '').toLowerCase().trim();
-
-          const surveyUser = ((s.dimensiScores as any)?.username || '').toString().toLowerCase().trim();
-          const surveyHospitalId = ((s.dimensiScores as any)?.hospital_id || (s as any).hospital_id || '').toString().toLowerCase().trim();
-          const surveyUserId = ((s.dimensiScores as any)?.user_id || (s as any).user_id || '').toString().toLowerCase().trim();
-          const surveyCreatedBy = ((s.dimensiScores as any)?.created_by || (s as any).created_by || '').toString().toLowerCase().trim();
-          const surveyHospName = ((s.dimensiScores as any)?.hospital_name || '').toString().toLowerCase().trim();
-          const sName = (s.namaRs || '').toString().toLowerCase().trim();
-          const sUnit = (s.unitKerja || '').toString().toLowerCase().trim();
-
-          const matchesUsername = tUsername && (
-            surveyUser === tUsername || 
-            surveyUserId === tUsername || 
-            surveyCreatedBy === tUsername || 
-            sName === tUsername ||
-            sUnit === tUsername
-          );
-          const matchesId = tId && (
-            surveyHospitalId === tId || 
-            surveyUser === tId || 
-            surveyUserId === tId || 
-            s.id.toString().toLowerCase() === tId
-          );
-          const matchesName = tName && (
-            sName === tName || 
-            surveyHospName === tName || 
-            surveyUser === tName
-          );
-          const matchesKode = tKode && (
-            surveyUser === tKode || 
-            surveyHospitalId === tKode || 
-            sName === tKode
-          );
-
-          if (!matchesUsername && !matchesId && !matchesName && !matchesKode) {
+          if (!isHospitalMatch(
+            s, 
+            targetAcc?.username || activeFilter, 
+            targetAcc?.id, 
+            targetAcc?.namaRs, 
+            targetAcc?.kodeRs
+          )) {
             return false;
           }
         }

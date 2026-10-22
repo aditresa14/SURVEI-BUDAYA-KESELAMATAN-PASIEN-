@@ -249,10 +249,102 @@ export function calculateOverallScore(submission: Partial<SurveySubmission>): nu
   return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
 }
 
+// Comprehensive multi-attribute hospital matcher (handles spaces, hyphens, case insensitivity, IDs, and usernames)
+export function isHospitalMatch(
+  survey: any,
+  targetUsername?: string,
+  targetId?: string,
+  targetName?: string,
+  targetKode?: string
+): boolean {
+  if (!survey) return false;
+
+  const normalize = (str?: any) => 
+    (str === undefined || str === null ? '' : String(str)).toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+
+  const normTargetUsername = normalize(targetUsername);
+  const normTargetId = normalize(targetId);
+  const normTargetName = normalize(targetName);
+  const normTargetKode = normalize(targetKode);
+
+  const ds = survey.dimensiScores || survey.dimensi_scores || {};
+  const sUser = normalize(ds.username || ds.userName);
+  const sHospId = normalize(ds.hospital_id || ds.hospitalId || survey.hospital_id);
+  const sUserId = normalize(ds.user_id || ds.userId || survey.user_id);
+  const sCreatedBy = normalize(ds.created_by || ds.createdBy || survey.created_by);
+  const sHospName = normalize(ds.hospital_name || ds.hospitalName || ds.rsName || ds.namaRs);
+  const sName = normalize(survey.namaRs || survey.nama_rs);
+  const sUnit = normalize(survey.unitKerja || survey.unit_kerja);
+  const sId = normalize(survey.id);
+
+  // 1. Direct ID match
+  if (normTargetId && (sHospId === normTargetId || sUserId === normTargetId || sId === normTargetId || sUser === normTargetId)) {
+    return true;
+  }
+
+  // 2. Direct Username match
+  if (normTargetUsername && (
+    sUser === normTargetUsername || 
+    sUserId === normTargetUsername || 
+    sCreatedBy === normTargetUsername || 
+    sName === normTargetUsername || 
+    sUnit === normTargetUsername
+  )) {
+    return true;
+  }
+
+  // 3. Direct Kode RS match
+  if (normTargetKode && (sUser === normTargetKode || sHospId === normTargetKode || sName === normTargetKode)) {
+    return true;
+  }
+
+  // 4. Normalized Hospital Name match (handles "RSUD AL MULK", "RSUD AL-MULK", "RSUD AL-MULK PALEMBANG")
+  if (normTargetName) {
+    if (sName === normTargetName || sHospName === normTargetName || sUser === normTargetName) {
+      return true;
+    }
+    // Substring match for hospitals with slightly different naming conventions (minimum 4 characters)
+    if (normTargetName.length >= 4 && sName.length >= 4) {
+      if (sName.includes(normTargetName) || normTargetName.includes(sName)) {
+        return true;
+      }
+    }
+    if (normTargetName.length >= 4 && sHospName.length >= 4) {
+      if (sHospName.includes(normTargetName) || normTargetName.includes(sHospName)) {
+        return true;
+      }
+    }
+
+    // Smart core hospital comparison stripping common Indonesian hospital prefixes (e.g. 'rsud', 'rsia', 'rs')
+    const stripPrefix = (name: string) => name.replace(/^(rsud|rsup|rsia|rsu|rs)/, '');
+    const coreTarget = stripPrefix(normTargetName);
+    const coreName = stripPrefix(sName);
+    const coreHospName = stripPrefix(sHospName);
+
+    if (coreTarget.length >= 3) {
+      if (coreName.length >= 3 && (coreName.includes(coreTarget) || coreTarget.includes(coreName))) {
+        return true;
+      }
+      if (coreHospName.length >= 3 && (coreHospName.includes(coreTarget) || coreTarget.includes(coreHospName))) {
+        return true;
+      }
+    }
+  }
+
+  // 5. Cross-match username with survey hospital name
+  if (normTargetUsername && normTargetUsername.length >= 4) {
+    if (sName.includes(normTargetUsername) || normTargetUsername.includes(sName)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // In-memory cache & Promise deduplication for surveys
 const surveysCache = new Map<string, { data: SurveyData[]; expiry: number }>();
 const inFlightSurveys = new Map<string, Promise<SurveyData[]>>();
-const SURVEYS_CACHE_TTL = 4 * 1000; // 4 seconds short cache for instant realtime sync
+const SURVEYS_CACHE_TTL = 30 * 1000; // 30 seconds cache to balance snappy UI & fresh data
 
 export function invalidateSurveysCache(hospitalId?: string) {
   if (hospitalId) {
@@ -267,13 +359,13 @@ export function invalidateSurveysCache(hospitalId?: string) {
 // In-memory cache & Promise deduplication for hospital accounts
 let cachedHospitalAccounts: { data: HospitalAccount[]; expiry: number } | null = null;
 let inFlightHospitalAccounts: Promise<HospitalAccount[]> | null = null;
-const ACCOUNTS_CACHE_TTL = 8 * 1000; // 8 seconds cache for fresh account list
+const ACCOUNTS_CACHE_TTL = 10 * 1000; // 10 seconds cache for fresh account list
 
 export function invalidateHospitalAccountsCache() {
   cachedHospitalAccounts = null;
 }
 
-// 1. Fetch all surveys (strictly from Supabase, optimized with server-side SQL filters & in-memory cache)
+// 1. Fetch all surveys (strictly from Supabase, optimized with parallel pagination, server-side SQL filters & in-memory cache)
 export async function getSurveys(hospitalId?: string): Promise<SurveyData[]> {
   const cacheKey = (hospitalId || '__all__').toLowerCase().trim();
 
@@ -283,7 +375,30 @@ export async function getSurveys(hospitalId?: string): Promise<SurveyData[]> {
     return cached.data;
   }
 
-  // 2. Promise deduplication: reuse in-flight promise if an identical request is already running
+  // 2. Check if __all__ is already cached - if so, RS queries can filter directly from it
+  const allCached = surveysCache.get('__all__');
+  const isSpecificHospital = Boolean(hospitalId && hospitalId !== 'admin' && hospitalId !== '__all__');
+
+  if (isSpecificHospital && allCached && allCached.expiry > Date.now()) {
+    try {
+      const accounts = await getHospitalAccounts();
+      const acc = accounts?.find((a: any) => 
+        a.id === hospitalId || 
+        a.username?.toLowerCase() === hospitalId?.toLowerCase() || 
+        (a.namaRs && a.namaRs.toLowerCase() === hospitalId?.toLowerCase())
+      );
+      const uuid = acc?.id || hospitalId;
+      const username = acc?.username || hospitalId;
+      const hospitalNameResolved = acc?.namaRs || hospitalId;
+      const filtered = allCached.data.filter((s: any) => isHospitalMatch(s, username, uuid, hospitalNameResolved));
+      surveysCache.set(cacheKey, { data: filtered, expiry: Date.now() + SURVEYS_CACHE_TTL });
+      return filtered;
+    } catch (e) {
+      // Fallback to network query
+    }
+  }
+
+  // 3. Promise deduplication: reuse in-flight promise if an identical request is already running
   const pending = inFlightSurveys.get(cacheKey);
   if (pending) {
     return pending;
@@ -294,7 +409,6 @@ export async function getSurveys(hospitalId?: string): Promise<SurveyData[]> {
     if (!supabase) return [];
 
     try {
-      const isSpecificHospital = Boolean(hospitalId && hospitalId !== 'admin' && hospitalId !== '__all__');
       let uuid = hospitalId || '';
       let username = hospitalId || '';
       let hospitalNameResolved = hospitalId || '';
@@ -320,80 +434,86 @@ export async function getSurveys(hospitalId?: string): Promise<SurveyData[]> {
         }
       }
 
-      let allData: any[] = [];
-      let page = 0;
       const limit = 1000;
-      let hasMore = true;
+      let allData: any[] = [];
       let fetchError = null;
 
-      while (hasMore) {
-        let query = supabase
+      // Build query
+      const buildQuery = () => {
+        let q = supabase
           .from('ahrq_surveys')
-          .select('id, nama_rs, unit_kerja, jumlah_responden, tanggal_input, dimensi_scores, created_at')
+          .select('id, nama_rs, unit_kerja, jumlah_responden, tanggal_input, dimensi_scores, created_at', { count: 'exact' })
           .order('created_at', { ascending: false });
 
         if (isSpecificHospital) {
-          // Construct server-side SQL WHERE filter to only transfer rows matching this hospital!
           const orConditions: string[] = [];
           if (hospitalNameResolved) {
-            orConditions.push(`nama_rs.eq."${hospitalNameResolved}"`);
+            orConditions.push(`nama_rs.ilike."*${hospitalNameResolved}*"`);
           }
           if (uuid) {
             orConditions.push(`dimensi_scores->>hospital_id.eq.${uuid}`);
-            orConditions.push(`dimensi_scores->>user_id.eq.${uuid}`);
           }
           if (username) {
-            orConditions.push(`dimensi_scores->>username.eq.${username}`);
-            orConditions.push(`dimensi_scores->>user_id.eq.${username}`);
+            orConditions.push(`dimensi_scores->>username.ilike."*${username}*"`);
+            orConditions.push(`nama_rs.ilike."*${username}*"`);
           }
           if (orConditions.length > 0) {
-            query = query.or(orConditions.join(','));
+            q = q.or(orConditions.join(','));
           }
         }
+        return q;
+      };
 
-        const { data, error } = await query.range(page * limit, (page + 1) * limit - 1);
+      // Fetch first page and get total count
+      let { data: firstPageData, count, error: firstError } = await buildQuery().range(0, limit - 1);
 
-        if (error) {
-          fetchError = error;
-          break;
-        }
+      // If specific hospital filter returned an error or 0 rows (e.g. syntax issue with or()), fallback to fetching without or()
+      if ((firstError || (isSpecificHospital && (!firstPageData || firstPageData.length === 0))) && isSpecificHospital) {
+        const fallback = await supabase
+          .from('ahrq_surveys')
+          .select('id, nama_rs, unit_kerja, jumlah_responden, tanggal_input, dimensi_scores, created_at', { count: 'exact' })
+          .order('created_at', { ascending: false })
+          .range(0, limit - 1);
+        firstPageData = fallback.data;
+        count = fallback.count;
+        firstError = fallback.error;
+      }
 
-        if (data && data.length > 0) {
-          allData = allData.concat(data);
-          if (data.length < limit) {
-            hasMore = false;
-          } else {
-            page++;
+      if (firstError) {
+        fetchError = firstError;
+      } else if (firstPageData) {
+        allData = [...firstPageData];
+        const totalCount = count || allData.length;
+
+        // If there are additional pages, fetch them in PARALLEL!
+        if (totalCount > limit) {
+          const totalPages = Math.ceil(totalCount / limit);
+          const pagePromises = [];
+          for (let p = 1; p < totalPages; p++) {
+            pagePromises.push(
+              supabase
+                .from('ahrq_surveys')
+                .select('id, nama_rs, unit_kerja, jumlah_responden, tanggal_input, dimensi_scores, created_at')
+                .order('created_at', { ascending: false })
+                .range(p * limit, (p + 1) * limit - 1)
+            );
           }
-        } else {
-          hasMore = false;
+          const pageResults = await Promise.all(pagePromises);
+          for (const res of pageResults) {
+            if (res.data && res.data.length > 0) {
+              allData = allData.concat(res.data);
+            }
+          }
         }
       }
 
-      if (!fetchError && allData) {
+      if (!fetchError && allData && allData.length > 0) {
         const allSurveys = allData.map(mapToSurveyData);
 
         let finalSurveys = allSurveys;
         if (isSpecificHospital) {
-          const tUuidLower = (uuid || '').toLowerCase();
-          const tUsernameLower = (username || '').toLowerCase();
-          const tNameLower = (hospitalNameResolved || '').toLowerCase();
-          const inputIdLower = (hospitalId || '').toLowerCase();
-
           finalSurveys = allSurveys.filter((s: any) => {
-            if (!s) return false;
-            const hId = ((s.dimensiScores as any)?.hospital_id || (s as any).hospital_id || '').toString().toLowerCase();
-            const uId = ((s.dimensiScores as any)?.user_id || (s.dimensiScores as any)?.username || (s as any).user_id || '').toString().toLowerCase();
-            const cBy = ((s.dimensiScores as any)?.created_by || (s as any).created_by || '').toString().toLowerCase();
-            const rsName = (s.namaRs || (s.dimensiScores as any)?.hospital_name || '').toString().toLowerCase();
-
-            return (
-              hId === tUuidLower || hId === tUsernameLower || hId === inputIdLower ||
-              uId === tUuidLower || uId === tUsernameLower || uId === inputIdLower ||
-              cBy === tUuidLower || cBy === tUsernameLower || cBy === inputIdLower ||
-              rsName === tNameLower || rsName === inputIdLower ||
-              (s.id && s.id.toString().toLowerCase() === inputIdLower)
-            );
+            return isHospitalMatch(s, username, uuid, hospitalNameResolved);
           });
         }
 

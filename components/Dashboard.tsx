@@ -43,6 +43,7 @@ import {
   isSurveyResponse,
   invalidateSurveysCache,
   invalidateHospitalAccountsCache,
+  isHospitalMatch,
   getSupabaseClient
 } from '../lib/db';
 import { computeDimensionScores } from '../lib/scoring';
@@ -127,8 +128,8 @@ export default function Dashboard({
       revalidateOnFocus: true,
       revalidateIfStale: true,
       revalidateOnReconnect: true,
-      refreshInterval: 6000, // Realtime polling: refresh surveys every 6 seconds
-      dedupingInterval: 2000
+      refreshInterval: 20000, // Background refresh every 20 seconds (balanced for performance & realtime)
+      dedupingInterval: 5000
     }
   );
 
@@ -258,32 +259,13 @@ export default function Dashboard({
           a.username?.toLowerCase() === selectedRsFilter.toLowerCase() || 
           a.id === selectedRsFilter
         );
-        const tUsername = (targetAcc?.username || selectedRsFilter).toLowerCase().trim();
-        const tId = (targetAcc?.id || '').toLowerCase().trim();
-        const tName = (targetAcc?.namaRs || '').toLowerCase().trim();
-        const tKode = (targetAcc?.kodeRs || '').toLowerCase().trim();
-
-        return validSurveys.filter(s => {
-          if (!s) return false;
-          const surveyUser = ((s.dimensiScores as any)?.username || '').toString().toLowerCase().trim();
-          const surveyHospitalId = ((s.dimensiScores as any)?.hospital_id || (s as any).hospital_id || '').toString().toLowerCase().trim();
-          const surveyUserId = ((s.dimensiScores as any)?.user_id || (s as any).user_id || '').toString().toLowerCase().trim();
-          const surveyCreatedBy = ((s.dimensiScores as any)?.created_by || (s as any).created_by || '').toString().toLowerCase().trim();
-          const surveyHospName = ((s.dimensiScores as any)?.hospital_name || '').toString().toLowerCase().trim();
-          const sName = (s.namaRs || '').toString().toLowerCase().trim();
-          const sUnit = (s.unitKerja || '').toString().toLowerCase().trim();
-
-          return Boolean(
-            (tUsername && (surveyUser === tUsername || surveyUserId === tUsername || surveyCreatedBy === tUsername || sName === tUsername || sUnit === tUsername)) ||
-            (tId && (surveyHospitalId === tId || surveyUser === tId || surveyUserId === tId || s.id.toString().toLowerCase() === tId)) ||
-            (tName && (sName === tName || surveyHospName === tName || surveyUser === tName)) ||
-            (tKode && (surveyUser === tKode || surveyHospitalId === tKode || sName === tKode))
-          );
-        });
+        return validSurveys.filter(s => 
+          isHospitalMatch(s, targetAcc?.username || selectedRsFilter, targetAcc?.id, targetAcc?.namaRs, targetAcc?.kodeRs)
+        );
       }
     }
-    return validSurveys;
-  }, [validSurveys, role, selectedRsFilter, accounts]);
+    return validSurveys.filter(s => isHospitalMatch(s, identifier, hospitalId, namaRs));
+  }, [validSurveys, role, selectedRsFilter, accounts, identifier, hospitalId, namaRs]);
 
   const surveysWithConfig = useMemo(() => {
     // Include the actual surveys PLUS the link config for this specific RS
@@ -306,34 +288,14 @@ export default function Dashboard({
           a.username?.toLowerCase() === selectedRsFilter.toLowerCase() || 
           a.id === selectedRsFilter
         );
-        const tUsername = (targetAcc?.username || selectedRsFilter).toLowerCase().trim();
-        const tId = (targetAcc?.id || '').toLowerCase().trim();
-        const tName = (targetAcc?.namaRs || '').toLowerCase().trim();
-
-        return baseSurveys.filter(s => {
-          const surveyUser = ((s.dimensiScores as any)?.username || s.unitKerja || '').toString().toLowerCase().trim();
-          const surveyHospitalId = ((s.dimensiScores as any)?.hospital_id || (s as any).hospital_id || '').toString().toLowerCase().trim();
-          const surveyUserId = ((s.dimensiScores as any)?.user_id || (s as any).user_id || '').toString().toLowerCase().trim();
-          const surveyCreatedBy = ((s.dimensiScores as any)?.created_by || (s as any).created_by || '').toString().toLowerCase().trim();
-          const surveyHospName = ((s.dimensiScores as any)?.hospital_name || '').toString().toLowerCase().trim();
-          const sName = (s.namaRs || '').toString().toLowerCase().trim();
-
-          const matches = Boolean(
-            (tUsername && (surveyUser === tUsername || surveyUserId === tUsername || surveyCreatedBy === tUsername || sName === tUsername)) ||
-            (tId && (surveyHospitalId === tId || surveyUser === tId || surveyUserId === tId)) ||
-            (tName && (sName === tName || surveyHospName === tName))
-          );
-
-          if (s.namaRs === '_LINK_CONFIG_' || s.id.startsWith('LINK_CONFIG_')) {
-            return matches || (tUsername && surveyUser === tUsername);
-          }
-
-          return matches;
-        });
+        return baseSurveys.filter(s => 
+          isHospitalMatch(s, targetAcc?.username || selectedRsFilter, targetAcc?.id, targetAcc?.namaRs, targetAcc?.kodeRs) ||
+          s.namaRs === '_LINK_CONFIG_'
+        );
       }
     }
-    return baseSurveys;
-  }, [surveys, role, selectedRsFilter, accounts]);
+    return baseSurveys.filter(s => isHospitalMatch(s, identifier, hospitalId, namaRs) || s.namaRs === '_LINK_CONFIG_');
+  }, [surveys, role, selectedRsFilter, accounts, identifier, hospitalId, namaRs]);
 
 
   const availableYears = useMemo(() => {
@@ -478,65 +440,16 @@ export default function Dashboard({
             a.username?.toLowerCase() === selectedRsFilter.toLowerCase() || 
             a.id === selectedRsFilter
           );
-          const tUsername = (targetAcc?.username || selectedRsFilter).toLowerCase().trim();
-          const tId = (targetAcc?.id || '').toLowerCase().trim();
-          const tName = (targetAcc?.namaRs || '').toLowerCase().trim();
-          const tKode = (targetAcc?.kodeRs || '').toLowerCase().trim();
-
-          const surveyUser = ((s.dimensiScores as any)?.username || '').toString().toLowerCase().trim();
-          const surveyHospitalId = ((s.dimensiScores as any)?.hospital_id || (s as any).hospital_id || '').toString().toLowerCase().trim();
-          const surveyUserId = ((s.dimensiScores as any)?.user_id || (s as any).user_id || '').toString().toLowerCase().trim();
-          const surveyCreatedBy = ((s.dimensiScores as any)?.created_by || (s as any).created_by || '').toString().toLowerCase().trim();
-          const surveyHospName = ((s.dimensiScores as any)?.hospital_name || '').toString().toLowerCase().trim();
-          const sName = (s.namaRs || '').toString().toLowerCase().trim();
-          const sUnit = (s.unitKerja || '').toString().toLowerCase().trim();
-
-          const matchesUsername = tUsername && (
-            surveyUser === tUsername || 
-            surveyUserId === tUsername || 
-            surveyCreatedBy === tUsername || 
-            sName === tUsername ||
-            sUnit === tUsername
+          return isHospitalMatch(
+            s, 
+            targetAcc?.username || selectedRsFilter, 
+            targetAcc?.id, 
+            targetAcc?.namaRs, 
+            targetAcc?.kodeRs
           );
-          const matchesId = tId && (
-            surveyHospitalId === tId || 
-            surveyUser === tId || 
-            surveyUserId === tId || 
-            s.id.toString().toLowerCase() === tId
-          );
-          const matchesName = tName && (
-            sName === tName || 
-            surveyHospName === tName || 
-            surveyUser === tName
-          );
-          const matchesKode = tKode && (
-            surveyUser === tKode || 
-            surveyHospitalId === tKode || 
-            sName === tKode
-          );
-
-          return Boolean(matchesUsername || matchesId || matchesName || matchesKode);
         }
       } else {
-        // RS user: surveys in validSurveys were already fetched from Supabase for this hospital
-        // Verify with comprehensive identifiers without prematurely returning false
-        const sUser = ((s.dimensiScores as any)?.username || '').toLowerCase();
-        const sHospId = ((s.dimensiScores as any)?.hospital_id || (s as any).hospital_id || '').toLowerCase();
-        const sUserId = ((s.dimensiScores as any)?.user_id || (s as any).user_id || '').toLowerCase();
-        const sCreatedBy = ((s.dimensiScores as any)?.created_by || (s as any).created_by || '').toLowerCase();
-        const sRsName = (s.namaRs || (s.dimensiScores as any)?.hospital_name || '').toLowerCase();
-
-        const myId = (identifier || '').toLowerCase();
-        const myHospId = (hospitalId || '').toLowerCase();
-        const myName = (namaRs || '').toLowerCase();
-
-        const isMatch = 
-          (myId && (sUser === myId || sHospId === myId || sUserId === myId || sCreatedBy === myId || sRsName === myId)) ||
-          (myHospId && (sHospId === myHospId || sUser === myHospId || sUserId === myHospId || sCreatedBy === myHospId)) ||
-          (myName && (sRsName === myName || sUser === myName));
-
-        // If explicitly matched or if loaded in RS-scoped dataset, keep it
-        return isMatch || true;
+        return isHospitalMatch(s, identifier, hospitalId, namaRs);
       }
     });
   }, [validSurveys, role, identifier, hospitalId, namaRs, selectedRsFilter, selectedYear, accounts]);
@@ -1024,7 +937,15 @@ export default function Dashboard({
             </div>
 
             {/* Tabel Hasil Survei AHRQ 10 Dimensi */}
-            <DashboardTable role={role} namaRs={namaRs} identifier={identifier} hospitalId={hospitalId} selectedRsFilter={selectedRsFilter} accounts={accounts} />
+            <DashboardTable 
+              role={role} 
+              namaRs={namaRs} 
+              identifier={identifier} 
+              hospitalId={hospitalId} 
+              selectedRsFilter={selectedRsFilter} 
+              accounts={accounts} 
+              surveys={validSurveys}
+            />
 
           </div>
         )}

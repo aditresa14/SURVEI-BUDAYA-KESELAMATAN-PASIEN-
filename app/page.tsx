@@ -22,22 +22,20 @@ export default function Home() {
   // Keep list of registered hospitals in state so they persist during active session
   const [registeredHospitals, setRegisteredHospitals] = useState<Array<{ username: string; kodeRs: string; namaRs: string }>>([]);
 
-  // Load wallpaper, logo, and header image on mount
+  // Load wallpaper, logo, and header image concurrently on mount
   useEffect(() => {
     async function loadPreferences() {
-      const savedWallpaper = await getWallpaper();
-      if (savedWallpaper) {
-        setWallpaper(savedWallpaper);
-      }
-      
-      const savedLogo = await getLogo();
-      if (savedLogo) {
-        setActiveLogo(savedLogo);
-      }
-
-      const savedHeaderImage = await getHeaderImage();
-      if (savedHeaderImage) {
-        setActiveHeaderImage(savedHeaderImage);
+      try {
+        const [savedWallpaper, savedLogo, savedHeaderImage] = await Promise.all([
+          getWallpaper().catch(() => null),
+          getLogo().catch(() => null),
+          getHeaderImage().catch(() => null),
+        ]);
+        if (savedWallpaper) setWallpaper(savedWallpaper);
+        if (savedLogo) setActiveLogo(savedLogo);
+        if (savedHeaderImage) setActiveHeaderImage(savedHeaderImage);
+      } catch (e) {
+        console.warn("Gagal memuat preferensi tampilan:", e);
       }
     }
     loadPreferences();

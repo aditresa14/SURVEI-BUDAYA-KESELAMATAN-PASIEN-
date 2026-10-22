@@ -28,23 +28,26 @@ export default function PublicSurveyPage() {
       try {
         const { data, error: fetchErr } = await supabase
           .from('ahrq_surveys')
-          .select('jumlah_responden, dimensi_scores')
+          .select('id, unit_kerja, nama_rs, tanggal_input, jumlah_responden, dimensi_scores, created_at')
           .eq('id', `LINK_CONFIG_${token}`)
-          .single();
+          .order('created_at', { ascending: false })
+          .limit(1);
 
-        if (fetchErr || !data) {
+        if (fetchErr || !data || data.length === 0) {
           setError('Mohon maaf, tautan survei yang Anda buka sudah tidak aktif, telah kedaluwarsa, atau tidak ditemukan. Silakan hubungi administrator Rumah Sakit untuk memperoleh tautan survei yang terbaru.');
           setLoading(false);
           return;
         }
 
-        if (data.jumlah_responden !== 1) {
-          setError('Mohon maaf, tautan survei yang Anda buka sudah tidak aktif, telah kedaluwarsa, atau tidak ditemukan. Silakan hubungi administrator Rumah Sakit untuk memperoleh tautan survei yang terbaru.');
+        const surveyRecord = data[0];
+
+        if (surveyRecord.jumlah_responden !== 1) {
+          setError('Mohon maaf, tautan survei yang Anda buka sedang dinonaktifkan sementara oleh administrator Rumah Sakit.');
           setLoading(false);
           return;
         }
 
-        let parsedScores = data.dimensi_scores;
+        let parsedScores = surveyRecord.dimensi_scores;
         if (typeof parsedScores === 'string') {
           try {
             parsedScores = JSON.parse(parsedScores);
@@ -54,23 +57,42 @@ export default function PublicSurveyPage() {
           }
         }
 
-        // Validate expiration date
-        if (parsedScores.expiryDate) {
-          const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-          if (todayStr > parsedScores.expiryDate) {
-            setError('Mohon maaf, tautan survei yang Anda buka sudah tidak aktif, telah kedaluwarsa, atau tidak ditemukan. Silakan hubungi administrator Rumah Sakit untuk memperoleh tautan survei yang terbaru.');
+        // Get today's date formatted as YYYY-MM-DD in Western Indonesian Time (WIB)
+        const todayStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Jakarta' }).format(new Date());
+
+        // Validate survey start date (Periode Mulai)
+        if (parsedScores.startDate && parsedScores.startDate.trim() !== '') {
+          if (todayStr < parsedScores.startDate.trim()) {
+            const startDateObj = new Date(parsedScores.startDate.trim() + 'T00:00:00');
+            const formattedStart = !isNaN(startDateObj.getTime())
+              ? startDateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+              : parsedScores.startDate;
+            setError(`Mohon maaf, periode pengisian kuesioner survei belum dimulai. Survei baru dapat diisi mulai tanggal ${formattedStart}.`);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Validate expiration date (Masa Berlaku / Periode Selesai)
+        if (parsedScores.expiryDate && parsedScores.expiryDate.trim() !== '') {
+          if (todayStr > parsedScores.expiryDate.trim()) {
+            const expiryDateObj = new Date(parsedScores.expiryDate.trim() + 'T23:59:59');
+            const formattedExpiry = !isNaN(expiryDateObj.getTime())
+              ? expiryDateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+              : parsedScores.expiryDate;
+            setError(`Mohon maaf, masa berlaku kuesioner survei ini telah berakhir pada tanggal ${formattedExpiry}. Silakan hubungi administrator Rumah Sakit.`);
             setLoading(false);
             return;
           }
         }
 
         // Validate max respondents
-        if (parsedScores.maxRespondents) {
+        if (parsedScores.maxRespondents && parsedScores.maxRespondents.toString().trim() !== '') {
           const max = parseInt(parsedScores.maxRespondents, 10);
-          if (!isNaN(max)) {
-            const current = parsedScores.respondentCount || 0;
+          if (!isNaN(max) && max > 0) {
+            const current = Number(parsedScores.respondentCount) || 0;
             if (current >= max) {
-              setError('Mohon maaf, tautan survei yang Anda buka sudah tidak aktif, telah mencapai batas maksimal jumlah responden, atau tidak ditemukan. Silakan hubungi administrator Rumah Sakit untuk memperoleh tautan survei yang terbaru.');
+              setError(`Mohon maaf, tautan survei yang Anda buka telah mencapai batas maksimal jumlah responden (${max} responden). Silakan hubungi administrator Rumah Sakit.`);
               setLoading(false);
               return;
             }
@@ -79,7 +101,7 @@ export default function PublicSurveyPage() {
 
         // Validate prevent duplicate
         if (parsedScores.preventDuplicate !== false) {
-          if (localStorage.getItem(`survey_submitted_${token}`)) {
+          if (typeof window !== 'undefined' && localStorage.getItem(`survey_submitted_${token}`)) {
             setError('Anda sudah mengisi survei ini dari perangkat ini. Terima kasih atas partisipasi Anda.');
             setLoading(false);
             return;
@@ -87,12 +109,12 @@ export default function PublicSurveyPage() {
         }
 
         setConfig({
-          rsName: parsedScores.rsName || 'Rumah Sakit',
-          identifier: data.unit_kerja,
-          hospitalId: data.hospital_id || parsedScores.hospital_id || data.unit_kerja,
-          userId: data.user_id || parsedScores.user_id || data.unit_kerja,
-          createdBy: data.created_by || parsedScores.created_by || data.unit_kerja,
-          hospitalName: data.hospital_name || parsedScores.hospital_name || parsedScores.rsName || 'Rumah Sakit'
+          rsName: parsedScores.rsName || surveyRecord.nama_rs || 'Rumah Sakit',
+          identifier: surveyRecord.unit_kerja || parsedScores.username || parsedScores.unit_kerja || 'default',
+          hospitalId: surveyRecord.hospital_id || parsedScores.hospital_id || surveyRecord.unit_kerja,
+          userId: surveyRecord.user_id || parsedScores.user_id || surveyRecord.unit_kerja,
+          createdBy: surveyRecord.created_by || parsedScores.created_by || surveyRecord.unit_kerja,
+          hospitalName: surveyRecord.hospital_name || parsedScores.hospital_name || parsedScores.rsName || surveyRecord.nama_rs || 'Rumah Sakit'
         });
 
         // Load logo
@@ -167,12 +189,13 @@ export default function PublicSurveyPage() {
     try {
       const { data } = await supabase
         .from('ahrq_surveys')
-        .select('dimensi_scores')
+        .select('id, dimensi_scores')
         .eq('id', `LINK_CONFIG_${token}`)
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1);
         
-      if (data) {
-        let parsedScores = data.dimensi_scores;
+      if (data && data.length > 0) {
+        let parsedScores = data[0].dimensi_scores;
         if (typeof parsedScores === 'string') {
           try {
             parsedScores = JSON.parse(parsedScores);
@@ -186,7 +209,7 @@ export default function PublicSurveyPage() {
           .update({
             dimensi_scores: { ...parsedScores, respondentCount: currentCount + 1 }
           })
-          .eq('id', `LINK_CONFIG_${token}`);
+          .eq('id', data[0].id);
       }
     } catch (e) {
       console.error("Gagal mengupdate jumlah responden link", e);

@@ -252,7 +252,7 @@ export function calculateOverallScore(submission: Partial<SurveySubmission>): nu
 // In-memory cache & Promise deduplication for surveys
 const surveysCache = new Map<string, { data: SurveyData[]; expiry: number }>();
 const inFlightSurveys = new Map<string, Promise<SurveyData[]>>();
-const SURVEYS_CACHE_TTL = 30 * 1000; // 30 seconds cache
+const SURVEYS_CACHE_TTL = 4 * 1000; // 4 seconds short cache for instant realtime sync
 
 export function invalidateSurveysCache(hospitalId?: string) {
   if (hospitalId) {
@@ -267,7 +267,7 @@ export function invalidateSurveysCache(hospitalId?: string) {
 // In-memory cache & Promise deduplication for hospital accounts
 let cachedHospitalAccounts: { data: HospitalAccount[]; expiry: number } | null = null;
 let inFlightHospitalAccounts: Promise<HospitalAccount[]> | null = null;
-const ACCOUNTS_CACHE_TTL = 3 * 60 * 1000; // 3 minutes cache
+const ACCOUNTS_CACHE_TTL = 8 * 1000; // 8 seconds cache for fresh account list
 
 export function invalidateHospitalAccountsCache() {
   cachedHospitalAccounts = null;

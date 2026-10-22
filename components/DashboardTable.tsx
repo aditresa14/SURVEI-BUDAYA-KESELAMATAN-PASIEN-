@@ -310,15 +310,16 @@ const getProfExperienceAnalysis = (data: { name: string; value: number; percenta
 };
 
 export default function DashboardTable({ role, namaRs, identifier, hospitalId, selectedRsFilter, accounts }: DashboardTableProps) {
-  // SWR for data synchronization (optimized with caching, no aggressive 3s polling)
+  // SWR for data synchronization (realtime auto-refresh & focus revalidation)
   const { data: surveys = [], error, mutate, isValidating } = useSWR(
     role === 'admin' ? 'ahrq_surveys_all' : ['ahrq_surveys', hospitalId || identifier],
     () => getSurveys(role === 'admin' ? undefined : (hospitalId || identifier)),
     {
-      revalidateOnFocus: false,
-      revalidateIfStale: false,
+      revalidateOnFocus: true,
+      revalidateIfStale: true,
       revalidateOnReconnect: true,
-      dedupingInterval: 10000
+      refreshInterval: 6000, // Realtime polling every 6 seconds
+      dedupingInterval: 2000
     }
   );
 
@@ -429,21 +430,59 @@ export default function DashboardTable({ role, namaRs, identifier, hospitalId, s
       } else if (role === 'admin') {
         const activeFilter = selectedRsFilter || 'all';
         if (activeFilter === 'admin') {
-          const surveyUser = (s.dimensiScores as any)?.username;
+          const surveyUser = ((s.dimensiScores as any)?.username || '').toLowerCase();
+          const sName = (s.namaRs || '').toLowerCase();
           if (surveyUser) {
-            if (surveyUser.toLowerCase() !== 'admin') return false;
+            if (surveyUser !== 'admin') return false;
           } else {
-            if (s.namaRs !== 'Administrator Pusat') return false;
+            if (sName !== 'administrator pusat' && sName !== 'admin') return false;
           }
         } else if (activeFilter === 'all') {
           if (filterHospital !== 'Semua Rumah Sakit' && s.namaRs !== filterHospital) return false;
         } else {
-          // Filter by specific RS username or ID
-          const surveyUser = (s.dimensiScores as any)?.username;
-          const surveyHospitalId = (s.dimensiScores as any)?.hospital_id;
-          if (surveyUser?.toLowerCase() !== activeFilter.toLowerCase() && 
-              surveyHospitalId !== activeFilter && 
-              s.namaRs.toLowerCase() !== activeFilter.toLowerCase()) {
+          // Comprehensive matching by username, id, nama_rs, or kode_rs from accounts
+          const targetAcc = accounts?.find(a => 
+            a.username?.toLowerCase() === activeFilter.toLowerCase() || 
+            a.id === activeFilter
+          );
+          const tUsername = (targetAcc?.username || activeFilter).toLowerCase().trim();
+          const tId = (targetAcc?.id || '').toLowerCase().trim();
+          const tName = (targetAcc?.namaRs || '').toLowerCase().trim();
+          const tKode = (targetAcc?.kodeRs || '').toLowerCase().trim();
+
+          const surveyUser = ((s.dimensiScores as any)?.username || '').toString().toLowerCase().trim();
+          const surveyHospitalId = ((s.dimensiScores as any)?.hospital_id || (s as any).hospital_id || '').toString().toLowerCase().trim();
+          const surveyUserId = ((s.dimensiScores as any)?.user_id || (s as any).user_id || '').toString().toLowerCase().trim();
+          const surveyCreatedBy = ((s.dimensiScores as any)?.created_by || (s as any).created_by || '').toString().toLowerCase().trim();
+          const surveyHospName = ((s.dimensiScores as any)?.hospital_name || '').toString().toLowerCase().trim();
+          const sName = (s.namaRs || '').toString().toLowerCase().trim();
+          const sUnit = (s.unitKerja || '').toString().toLowerCase().trim();
+
+          const matchesUsername = tUsername && (
+            surveyUser === tUsername || 
+            surveyUserId === tUsername || 
+            surveyCreatedBy === tUsername || 
+            sName === tUsername ||
+            sUnit === tUsername
+          );
+          const matchesId = tId && (
+            surveyHospitalId === tId || 
+            surveyUser === tId || 
+            surveyUserId === tId || 
+            s.id.toString().toLowerCase() === tId
+          );
+          const matchesName = tName && (
+            sName === tName || 
+            surveyHospName === tName || 
+            surveyUser === tName
+          );
+          const matchesKode = tKode && (
+            surveyUser === tKode || 
+            surveyHospitalId === tKode || 
+            sName === tKode
+          );
+
+          if (!matchesUsername && !matchesId && !matchesName && !matchesKode) {
             return false;
           }
         }
@@ -481,7 +520,7 @@ export default function DashboardTable({ role, namaRs, identifier, hospitalId, s
 
       return true;
     });
-  }, [surveys, role, namaRs, identifier, filterHospital, filterUnit, filterProfesi, filterJabatan, filterPeriod, filterTahun, selectedRsFilter]);
+  }, [surveys, role, namaRs, identifier, filterHospital, filterUnit, filterProfesi, filterJabatan, filterPeriod, filterTahun, selectedRsFilter, accounts]);
 
   // Calculate Positive Response Rates Compositely for each Dimension over all filtered surveys
   const calculatedDimensions = useMemo(() => {

@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { isSupabaseConnected, getSupabaseClient } from '../lib/supabase';
-import { getMasterPosisi, PosisiStaff, getMasterUnit, UnitKerja } from '../lib/db';
+import { getMasterPosisi, PosisiStaff, getMasterUnit, UnitKerja, invalidateSurveysCache } from '../lib/db';
 import { mutate } from 'swr';
 
 interface RippleButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onAnimationStart' | 'onDragStart' | 'onDragEnd' | 'onDrag' | 'style'> {
@@ -396,24 +396,56 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
     if (!supabase) return;
     setIsLoadingLink(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('ahrq_surveys')
-        .select('id, tanggal_input, jumlah_responden, created_at, dimensi_scores')
-        .eq('nama_rs', '_LINK_CONFIG_')
-        .eq('unit_kerja', identifier)
+        .select('id, unit_kerja, nama_rs, tanggal_input, jumlah_responden, created_at, dimensi_scores')
+        .like('id', 'LINK_CONFIG_%');
+
+      if (hospitalId && identifier && hospitalId !== identifier) {
+        query = query.or(`unit_kerja.eq.${identifier},unit_kerja.eq.${hospitalId}`);
+      } else if (identifier) {
+        query = query.eq('unit_kerja', identifier);
+      } else if (hospitalId) {
+        query = query.eq('unit_kerja', hospitalId);
+      }
+      
+      const { data, error } = await query
         .order('created_at', { ascending: false })
         .limit(1);
       
-      if (!error && data && data.length > 0) {
-        const latest = data[0];
-        const scores = parseDimensiScores(latest.dimensi_scores);
+      let targetRow = (!error && data && data.length > 0) ? data[0] : null;
+
+      // Fallback search if not matched by unit_kerja directly
+      if (!targetRow) {
+        const { data: allConfigs } = await supabase
+          .from('ahrq_surveys')
+          .select('id, unit_kerja, nama_rs, tanggal_input, jumlah_responden, created_at, dimensi_scores')
+          .like('id', 'LINK_CONFIG_%')
+          .order('created_at', { ascending: false })
+          .limit(30);
+
+        if (allConfigs && allConfigs.length > 0) {
+          targetRow = allConfigs.find((r: any) => {
+            const sc = parseDimensiScores(r.dimensi_scores);
+            return (
+              (identifier && (r.unit_kerja === identifier || sc.username === identifier)) ||
+              (hospitalId && (r.unit_kerja === hospitalId || sc.hospital_id === hospitalId)) ||
+              (currentRsName && (sc.rsName === currentRsName || r.nama_rs === currentRsName))
+            );
+          }) || allConfigs[0];
+        }
+      }
+
+      if (targetRow) {
+        const scores = parseDimensiScores(targetRow.dimensi_scores);
         const actualCount = surveys.reduce((acc, curr) => acc + (curr.jumlahResponden || 1), 0);
         const countToUse = Math.max(scores.respondentCount || 0, actualCount);
+        const resolvedToken = scores.token || targetRow.id.replace('LINK_CONFIG_', '') || targetRow.tanggal_input;
 
         setSurveyLinkConfig({
-          token: scores.token || latest.tanggal_input,
-          isActive: latest.jumlah_responden === 1,
-          createdAt: scores.createdAt || latest.created_at || new Date().toISOString(),
+          token: resolvedToken,
+          isActive: targetRow.jumlah_responden === 1,
+          createdAt: scores.createdAt || targetRow.created_at || new Date().toISOString(),
           startDate: scores.startDate || '',
           respondentCount: countToUse,
           expiryDate: scores.expiryDate || '',
@@ -438,12 +470,12 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
     try {
       const token = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
       
-      // Delete existing configs to avoid cluttering/duplicate errors
+      // Delete existing configs for this user/hospital to avoid orphaned records
       const { data: existing } = await supabase
         .from('ahrq_surveys')
         .select('id')
         .eq('nama_rs', '_LINK_CONFIG_')
-        .eq('unit_kerja', identifier);
+        .or(`unit_kerja.eq.${identifier},unit_kerja.eq.${hospitalId || identifier}`);
 
       if (existing && existing.length > 0) {
         const idsToDelete = existing.map((x: any) => x.id);
@@ -453,6 +485,12 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
           .in('id', idsToDelete);
       }
 
+      // Also ensure this new ID does not collide
+      await supabase
+        .from('ahrq_surveys')
+        .delete()
+        .eq('id', `LINK_CONFIG_${token}`);
+
       const todayDate = new Date().toISOString().split('T')[0]; // valid date YYYY-MM-DD
       const actualCount = surveys.reduce((acc, curr) => acc + (curr.jumlahResponden || 1), 0);
       const currentCount = Math.max(surveyLinkConfig?.respondentCount || 0, actualCount);
@@ -460,13 +498,14 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
       const newConfig = {
         id: `LINK_CONFIG_${token}`,
         nama_rs: '_LINK_CONFIG_',
-        unit_kerja: identifier,
+        unit_kerja: identifier || hospitalId || 'default',
         tanggal_input: todayDate,
         jumlah_responden: 1, // active
         dimensi_scores: {
           token: token,
           rsName: currentRsName,
           createdAt: new Date().toISOString(),
+          startDate: '',
           respondentCount: currentCount,
           expiryDate: '',
           maxRespondents: '',
@@ -485,21 +524,25 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
 
       if (genError) {
         console.error("Gagal generate config link:", genError);
+        showNotification(`Gagal membuat tautan baru: ${genError.message || 'Kesalahan database'}`, "error");
+      } else {
+        setSurveyLinkConfig({
+          token: token,
+          isActive: true,
+          createdAt: newConfig.dimensi_scores.createdAt,
+          startDate: '',
+          respondentCount: currentCount,
+          expiryDate: '',
+          maxRespondents: '',
+          preventDuplicate: true,
+          customDomain: ''
+        });
+        invalidateSurveysCache();
+        showNotification("Tautan survei baru berhasil dibuat!", "success");
       }
-      
-      setSurveyLinkConfig({
-        token: token,
-        isActive: true,
-        createdAt: newConfig.dimensi_scores.createdAt,
-        startDate: '',
-        respondentCount: currentCount,
-        expiryDate: '',
-        maxRespondents: '',
-        preventDuplicate: true,
-        customDomain: ''
-      });
     } catch (e) {
       console.error('Error generating link', e);
+      showNotification("Terjadi kesalahan saat membuat tautan baru", "error");
     } finally {
       setIsLoadingLink(false);
     }
@@ -513,19 +556,25 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
     try {
       const mergedConfig = { ...surveyLinkConfig, ...fieldsToUpdate };
       const todayDate = new Date().toISOString().split('T')[0];
+      const targetToken = mergedConfig.token;
       
+      if (!targetToken) {
+        showNotification("Token tautan survei tidak valid", "error");
+        return;
+      }
+
       const dbRow = {
-        id: `LINK_CONFIG_${mergedConfig.token}`,
+        id: `LINK_CONFIG_${targetToken}`,
         nama_rs: '_LINK_CONFIG_',
-        unit_kerja: identifier,
+        unit_kerja: identifier || hospitalId || 'default',
         tanggal_input: todayDate,
         jumlah_responden: mergedConfig.isActive ? 1 : 0,
         dimensi_scores: {
-          token: mergedConfig.token,
+          token: targetToken,
           rsName: currentRsName,
           createdAt: mergedConfig.createdAt,
           startDate: mergedConfig.startDate || '',
-          respondentCount: mergedConfig.respondentCount,
+          respondentCount: mergedConfig.respondentCount || 0,
           expiryDate: mergedConfig.expiryDate || '',
           maxRespondents: mergedConfig.maxRespondents || '',
           preventDuplicate: mergedConfig.preventDuplicate !== false,
@@ -537,20 +586,28 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
         }
       };
 
+      // 1. Delete all existing rows for this token ID first to prevent duplicate rows (no primary key on ahrq_surveys)
+      await supabase
+        .from('ahrq_surveys')
+        .delete()
+        .eq('id', `LINK_CONFIG_${targetToken}`);
+
+      // 2. Insert pristine updated record
       const { error } = await supabase
         .from('ahrq_surveys')
-        .upsert([dbRow]);
+        .insert([dbRow]);
 
       if (!error) {
         setSurveyLinkConfig(mergedConfig);
+        invalidateSurveysCache();
         if (showSuccessMsg) {
-          showNotification("Pengaturan tautan survei berhasil disimpan!", "success");
+          showNotification("Pengaturan tautan survei berhasil disimpan! Link sebelumnya tetap aktif.", "success");
         }
       } else {
         console.error("Gagal melakukan update config link", error);
         showNotification(`Gagal menyimpan pengaturan link: ${error.message || 'Kesalahan database'}`, "error");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Kesalahan saat mengupdate link config", e);
       showNotification("Terjadi kesalahan saat menyimpan pengaturan link", "error");
     } finally {
@@ -564,7 +621,7 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
   };
 
   useEffect(() => {
-    if (showLinkModal && !surveyLinkConfig) {
+    if (showLinkModal) {
       loadSurveyLink();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3085,16 +3142,19 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
                     </div>
                   </div>
                   
-                  <div className="pt-2 border-t border-slate-100">
+                  <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                    <p className="text-[11px] text-slate-500 leading-tight text-center">
+                      *Tautan survei yang sudah dibagikan tetap aktif dan dapat dibuka saat Anda mengubah masa berlaku di atas. Opsi buat ulang di bawah ini bersifat opsional (misal jika ingin mengganti link atau beda tahun penilaian).
+                    </p>
                     <button 
                       onClick={() => {
-                        if (confirm('Link lama akan dinonaktifkan secara permanen dan tidak dapat digunakan lagi. Lanjutkan?')) {
+                        if (confirm('Link lama akan dinonaktifkan secara permanen dan dibuatkan link baru. Gunakan opsi ini HANYA jika memang ingin mengganti link atau beda tahun penilaian survei. Lanjutkan?')) {
                           generateSurveyLink();
                         }
                       }}
-                      className="w-full text-xs text-rose-600 hover:text-rose-500 font-semibold text-center py-2 transition-colors cursor-pointer"
+                      className="w-full text-xs text-rose-600 hover:text-rose-500 font-semibold text-center py-1.5 transition-colors cursor-pointer"
                     >
-                      Buat Ulang (Regenerate) Link
+                      Buat Ulang (Regenerate) Link Baru (Opsional)
                     </button>
                   </div>
                 </div>

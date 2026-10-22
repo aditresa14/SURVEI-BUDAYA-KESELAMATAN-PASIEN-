@@ -34,7 +34,17 @@ import PengaturanTab from './PengaturanTab';
 import PersetujuanTab from './PersetujuanTab';
 import PersetujuanBenchmarkTab from './PersetujuanBenchmarkTab';
 import DashboardTable from './DashboardTable';
-import { getSurveys, saveSurvey, getHospitalAccounts, deleteSurvey, getBenchmarkRequests, isSurveyResponse } from '../lib/db';
+import { 
+  getSurveys, 
+  saveSurvey, 
+  getHospitalAccounts, 
+  deleteSurvey, 
+  getBenchmarkRequests, 
+  isSurveyResponse,
+  invalidateSurveysCache,
+  invalidateHospitalAccountsCache,
+  getSupabaseClient
+} from '../lib/db';
 import { computeDimensionScores } from '../lib/scoring';
 import { WallpaperData } from '../lib/wallpaper';
 import { LogoData } from '../lib/logo';
@@ -109,39 +119,76 @@ export default function Dashboard({
     }
   }, [notification]);
 
-  // SWR for survey synchronization (optimized without aggressive polling to minimize Supabase egress)
+  // SWR for survey synchronization - Realtime polling & focus revalidation
   const { data: surveys = [], mutate, isLoading: surveysLoading } = useSWR(
     role === 'admin' ? 'ahrq_surveys_all' : ['ahrq_surveys', hospitalId || identifier],
     () => getSurveys(role === 'admin' ? undefined : (hospitalId || identifier)),
     {
-      revalidateOnFocus: false,
-      revalidateIfStale: false,
+      revalidateOnFocus: true,
+      revalidateIfStale: true,
       revalidateOnReconnect: true,
-      dedupingInterval: 10000
+      refreshInterval: 6000, // Realtime polling: refresh surveys every 6 seconds
+      dedupingInterval: 2000
     }
   );
 
-  // SWR for hospital accounts (cached, no aggressive polling)
+  // SWR for hospital accounts (realtime refreshed)
   const { data: accounts = [], mutate: mutateAccounts } = useSWR(
     'hospital_accounts',
     getHospitalAccounts,
     {
-      revalidateOnFocus: false,
-      revalidateIfStale: false,
+      revalidateOnFocus: true,
+      revalidateIfStale: true,
       revalidateOnReconnect: true,
-      dedupingInterval: 30000
+      refreshInterval: 12000, // Refresh accounts every 12 seconds
+      dedupingInterval: 3000
     }
   );
+
+  // Supabase Real-time listener: instantly triggers mutate when database changes
+  useEffect(() => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    try {
+      const channel = supabase
+        .channel('dashboard_realtime_sync')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'ahrq_surveys' },
+          () => {
+            invalidateSurveysCache();
+            mutate();
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'hospital_accounts' },
+          () => {
+            invalidateHospitalAccountsCache();
+            mutateAccounts();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } catch (e) {
+      console.warn("Realtime channel subscription error:", e);
+    }
+  }, [mutate, mutateAccounts]);
 
   // SWR for benchmark requests (disabled for Admin Utama to respect data privacy)
   const { data: benchmarkRequests = [], mutate: mutateBenchmarkRequests } = useSWR(
     role === 'admin' ? null : ['ahrq_benchmark_requests', hospitalId || identifier],
     () => getBenchmarkRequests(hospitalId || identifier),
     {
-      revalidateOnFocus: false,
-      revalidateIfStale: false,
+      revalidateOnFocus: true,
+      revalidateIfStale: true,
       revalidateOnReconnect: true,
-      dedupingInterval: 15000
+      refreshInterval: 15000,
+      dedupingInterval: 5000
     }
   );
 
@@ -200,23 +247,43 @@ export default function Dashboard({
     if (role === 'admin') {
       if (selectedRsFilter === 'admin') {
         return validSurveys.filter(s => {
-          const surveyUser = (s.dimensiScores as any)?.username;
-          return surveyUser?.toLowerCase() === 'admin' || s.namaRs === 'Administrator Pusat';
+          const surveyUser = ((s.dimensiScores as any)?.username || '').toLowerCase();
+          const sName = (s.namaRs || '').toLowerCase();
+          return surveyUser === 'admin' || sName === 'administrator pusat' || sName === 'admin';
         });
       } else if (selectedRsFilter === 'all') {
         return validSurveys;
       } else {
+        const targetAcc = accounts.find(a => 
+          a.username?.toLowerCase() === selectedRsFilter.toLowerCase() || 
+          a.id === selectedRsFilter
+        );
+        const tUsername = (targetAcc?.username || selectedRsFilter).toLowerCase().trim();
+        const tId = (targetAcc?.id || '').toLowerCase().trim();
+        const tName = (targetAcc?.namaRs || '').toLowerCase().trim();
+        const tKode = (targetAcc?.kodeRs || '').toLowerCase().trim();
+
         return validSurveys.filter(s => {
-          const surveyUser = (s.dimensiScores as any)?.username;
-          const surveyHospitalId = (s.dimensiScores as any)?.hospital_id;
-          return (surveyUser?.toLowerCase() === selectedRsFilter.toLowerCase() || 
-                  surveyHospitalId === selectedRsFilter || 
-                  s.namaRs.toLowerCase() === selectedRsFilter.toLowerCase());
+          if (!s) return false;
+          const surveyUser = ((s.dimensiScores as any)?.username || '').toString().toLowerCase().trim();
+          const surveyHospitalId = ((s.dimensiScores as any)?.hospital_id || (s as any).hospital_id || '').toString().toLowerCase().trim();
+          const surveyUserId = ((s.dimensiScores as any)?.user_id || (s as any).user_id || '').toString().toLowerCase().trim();
+          const surveyCreatedBy = ((s.dimensiScores as any)?.created_by || (s as any).created_by || '').toString().toLowerCase().trim();
+          const surveyHospName = ((s.dimensiScores as any)?.hospital_name || '').toString().toLowerCase().trim();
+          const sName = (s.namaRs || '').toString().toLowerCase().trim();
+          const sUnit = (s.unitKerja || '').toString().toLowerCase().trim();
+
+          return Boolean(
+            (tUsername && (surveyUser === tUsername || surveyUserId === tUsername || surveyCreatedBy === tUsername || sName === tUsername || sUnit === tUsername)) ||
+            (tId && (surveyHospitalId === tId || surveyUser === tId || surveyUserId === tId || s.id.toString().toLowerCase() === tId)) ||
+            (tName && (sName === tName || surveyHospName === tName || surveyUser === tName)) ||
+            (tKode && (surveyUser === tKode || surveyHospitalId === tKode || sName === tKode))
+          );
         });
       }
     }
     return validSurveys;
-  }, [validSurveys, role, selectedRsFilter]);
+  }, [validSurveys, role, selectedRsFilter, accounts]);
 
   const surveysWithConfig = useMemo(() => {
     // Include the actual surveys PLUS the link config for this specific RS
@@ -228,24 +295,45 @@ export default function Dashboard({
     if (role === 'admin') {
       if (selectedRsFilter === 'admin') {
         return baseSurveys.filter(s => {
-          const surveyUser = (s.dimensiScores as any)?.username || s.unitKerja;
-          return surveyUser?.toLowerCase() === 'admin' || s.namaRs === 'Administrator Pusat' || s.namaRs === '_LINK_CONFIG_';
+          const surveyUser = ((s.dimensiScores as any)?.username || s.unitKerja || '').toLowerCase();
+          const sName = (s.namaRs || '').toLowerCase();
+          return surveyUser === 'admin' || sName === 'administrator pusat' || s.namaRs === '_LINK_CONFIG_';
         });
       } else if (selectedRsFilter === 'all') {
         return baseSurveys;
       } else {
+        const targetAcc = accounts.find(a => 
+          a.username?.toLowerCase() === selectedRsFilter.toLowerCase() || 
+          a.id === selectedRsFilter
+        );
+        const tUsername = (targetAcc?.username || selectedRsFilter).toLowerCase().trim();
+        const tId = (targetAcc?.id || '').toLowerCase().trim();
+        const tName = (targetAcc?.namaRs || '').toLowerCase().trim();
+
         return baseSurveys.filter(s => {
-          const surveyUser = (s.dimensiScores as any)?.username || s.unitKerja;
-          const surveyHospitalId = (s.dimensiScores as any)?.hospital_id;
-          return (surveyUser?.toLowerCase() === selectedRsFilter.toLowerCase() || 
-                  surveyHospitalId === selectedRsFilter || 
-                  s.namaRs.toLowerCase() === selectedRsFilter.toLowerCase() ||
-                  (s.namaRs === '_LINK_CONFIG_' && surveyUser?.toLowerCase() === selectedRsFilter.toLowerCase()));
+          const surveyUser = ((s.dimensiScores as any)?.username || s.unitKerja || '').toString().toLowerCase().trim();
+          const surveyHospitalId = ((s.dimensiScores as any)?.hospital_id || (s as any).hospital_id || '').toString().toLowerCase().trim();
+          const surveyUserId = ((s.dimensiScores as any)?.user_id || (s as any).user_id || '').toString().toLowerCase().trim();
+          const surveyCreatedBy = ((s.dimensiScores as any)?.created_by || (s as any).created_by || '').toString().toLowerCase().trim();
+          const surveyHospName = ((s.dimensiScores as any)?.hospital_name || '').toString().toLowerCase().trim();
+          const sName = (s.namaRs || '').toString().toLowerCase().trim();
+
+          const matches = Boolean(
+            (tUsername && (surveyUser === tUsername || surveyUserId === tUsername || surveyCreatedBy === tUsername || sName === tUsername)) ||
+            (tId && (surveyHospitalId === tId || surveyUser === tId || surveyUserId === tId)) ||
+            (tName && (sName === tName || surveyHospName === tName))
+          );
+
+          if (s.namaRs === '_LINK_CONFIG_' || s.id.startsWith('LINK_CONFIG_')) {
+            return matches || (tUsername && surveyUser === tUsername);
+          }
+
+          return matches;
         });
       }
     }
     return baseSurveys;
-  }, [surveys, role, selectedRsFilter]);
+  }, [surveys, role, selectedRsFilter, accounts]);
 
 
   const availableYears = useMemo(() => {
@@ -379,17 +467,55 @@ export default function Dashboard({
 
       if (role === 'admin') {
         if (selectedRsFilter === 'admin') {
-          const surveyUser = (s.dimensiScores as any)?.username;
-          if (surveyUser) return surveyUser.toLowerCase() === 'admin';
-          return s.namaRs === 'Administrator Pusat';
+          const surveyUser = ((s.dimensiScores as any)?.username || '').toLowerCase();
+          const sName = (s.namaRs || '').toLowerCase();
+          if (surveyUser) return surveyUser === 'admin';
+          return sName === 'administrator pusat' || sName === 'admin';
         } else if (selectedRsFilter === 'all') {
           return true;
         } else {
-          const surveyUser = (s.dimensiScores as any)?.username;
-          const surveyHospitalId = (s.dimensiScores as any)?.hospital_id;
-          return (surveyUser?.toLowerCase() === selectedRsFilter.toLowerCase() || 
-                  surveyHospitalId === selectedRsFilter || 
-                  s.namaRs.toLowerCase() === selectedRsFilter.toLowerCase());
+          const targetAcc = accounts.find(a => 
+            a.username?.toLowerCase() === selectedRsFilter.toLowerCase() || 
+            a.id === selectedRsFilter
+          );
+          const tUsername = (targetAcc?.username || selectedRsFilter).toLowerCase().trim();
+          const tId = (targetAcc?.id || '').toLowerCase().trim();
+          const tName = (targetAcc?.namaRs || '').toLowerCase().trim();
+          const tKode = (targetAcc?.kodeRs || '').toLowerCase().trim();
+
+          const surveyUser = ((s.dimensiScores as any)?.username || '').toString().toLowerCase().trim();
+          const surveyHospitalId = ((s.dimensiScores as any)?.hospital_id || (s as any).hospital_id || '').toString().toLowerCase().trim();
+          const surveyUserId = ((s.dimensiScores as any)?.user_id || (s as any).user_id || '').toString().toLowerCase().trim();
+          const surveyCreatedBy = ((s.dimensiScores as any)?.created_by || (s as any).created_by || '').toString().toLowerCase().trim();
+          const surveyHospName = ((s.dimensiScores as any)?.hospital_name || '').toString().toLowerCase().trim();
+          const sName = (s.namaRs || '').toString().toLowerCase().trim();
+          const sUnit = (s.unitKerja || '').toString().toLowerCase().trim();
+
+          const matchesUsername = tUsername && (
+            surveyUser === tUsername || 
+            surveyUserId === tUsername || 
+            surveyCreatedBy === tUsername || 
+            sName === tUsername ||
+            sUnit === tUsername
+          );
+          const matchesId = tId && (
+            surveyHospitalId === tId || 
+            surveyUser === tId || 
+            surveyUserId === tId || 
+            s.id.toString().toLowerCase() === tId
+          );
+          const matchesName = tName && (
+            sName === tName || 
+            surveyHospName === tName || 
+            surveyUser === tName
+          );
+          const matchesKode = tKode && (
+            surveyUser === tKode || 
+            surveyHospitalId === tKode || 
+            sName === tKode
+          );
+
+          return Boolean(matchesUsername || matchesId || matchesName || matchesKode);
         }
       } else {
         // RS user: surveys in validSurveys were already fetched from Supabase for this hospital
@@ -413,7 +539,7 @@ export default function Dashboard({
         return isMatch || true;
       }
     });
-  }, [validSurveys, role, identifier, hospitalId, namaRs, selectedRsFilter, selectedYear]);
+  }, [validSurveys, role, identifier, hospitalId, namaRs, selectedRsFilter, selectedYear, accounts]);
 
   // Statistics calculations
   const totalRespondents = filteredSurveys.reduce((acc, curr) => acc + (curr.jumlahResponden || 1), 0);

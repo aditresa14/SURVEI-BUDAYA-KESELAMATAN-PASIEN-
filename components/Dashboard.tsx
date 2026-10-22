@@ -228,7 +228,9 @@ export default function Dashboard({
   }, [role, accounts, hospitalId, identifier, onLogout]);
 
   // Filter surveys: Admin sees all, RS sees only their own (and excludes config/pengesahan rows)
-  const validSurveys = surveys.filter(s => isSurveyResponse(s) && s.namaRs !== '_LINK_CONFIG_' && s.namaRs !== '_MASTER_CONFIG_' && s.id !== 'MASTER_BENCHMARK');
+  const validSurveys = useMemo(() => {
+    return surveys.filter(s => isSurveyResponse(s) && s.namaRs !== '_LINK_CONFIG_' && s.namaRs !== '_MASTER_CONFIG_' && s.id !== 'MASTER_BENCHMARK');
+  }, [surveys]);
 
   const activeHospitalNameForLaporan = useMemo(() => {
     if (role === 'admin') {

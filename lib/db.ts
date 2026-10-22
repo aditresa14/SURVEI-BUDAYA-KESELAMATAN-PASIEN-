@@ -332,9 +332,21 @@ export function isHospitalMatch(
   }
 
   // 5. Cross-match username with survey hospital name
-  if (normTargetUsername && normTargetUsername.length >= 4) {
+  if (normTargetUsername && normTargetUsername.length >= 3) {
     if (sName.includes(normTargetUsername) || normTargetUsername.includes(sName)) {
       return true;
+    }
+    const stripPrefix = (name: string) => name.replace(/^(rsud|rsup|rsia|rsu|rs)/, '');
+    const coreUsername = stripPrefix(normTargetUsername);
+    const coreName = stripPrefix(sName);
+    const coreHospName = stripPrefix(sHospName);
+    if (coreUsername.length >= 3) {
+      if (coreName.length >= 3 && (coreName.includes(coreUsername) || coreUsername.includes(coreName))) {
+        return true;
+      }
+      if (coreHospName.length >= 3 && (coreHospName.includes(coreUsername) || coreUsername.includes(coreHospName))) {
+        return true;
+      }
     }
   }
 
@@ -351,8 +363,11 @@ export function invalidateSurveysCache(hospitalId?: string) {
     surveysCache.delete(hospitalId.toLowerCase());
     surveysCache.delete('admin');
     surveysCache.delete('__all__');
+    inFlightSurveys.delete('__all__');
+    inFlightSurveys.delete(hospitalId.toLowerCase());
   } else {
     surveysCache.clear();
+    inFlightSurveys.clear();
   }
 }
 
@@ -363,9 +378,10 @@ const ACCOUNTS_CACHE_TTL = 10 * 1000; // 10 seconds cache for fresh account list
 
 export function invalidateHospitalAccountsCache() {
   cachedHospitalAccounts = null;
+  inFlightHospitalAccounts = null;
 }
 
-// 1. Fetch all surveys (strictly from Supabase, optimized with parallel pagination and in-memory cache)
+// 1. Fetch all surveys (strictly from Supabase, optimized with deterministic parallel pagination and in-memory cache)
 export async function getSurveys(hospitalId?: string): Promise<SurveyData[]> {
   const isSpecificHospital = Boolean(hospitalId && hospitalId !== 'admin' && hospitalId !== '__all__');
   const cacheKey = (hospitalId || '__all__').toLowerCase().trim();
@@ -396,7 +412,7 @@ export async function getSurveys(hospitalId?: string): Promise<SurveyData[]> {
     return filtered;
   }
 
-  // 3. Promise deduplication on '__all__': always fetch the full dataset once!
+  // 3. Promise deduplication on '__all__': always fetch the full dataset once deterministically!
   let pendingAll = inFlightSurveys.get('__all__');
   if (!pendingAll) {
     pendingAll = (async (): Promise<SurveyData[]> => {
@@ -405,11 +421,12 @@ export async function getSurveys(hospitalId?: string): Promise<SurveyData[]> {
 
       try {
         const limit = 1000;
-        // Fetch first page and get total count
+        // Fetch first page with deterministic secondary sort by 'id' to prevent shifting / dropped rows across pages!
         const { data: firstPageData, count, error: firstError } = await supabase
           .from('ahrq_surveys')
           .select('id, nama_rs, unit_kerja, jumlah_responden, tanggal_input, dimensi_scores, created_at', { count: 'exact' })
-          .order('created_at', { ascending: false })
+          .order('created_at', { ascending: false, nullsFirst: false })
+          .order('id', { ascending: false })
           .range(0, limit - 1);
 
         if (firstError) {
@@ -420,7 +437,7 @@ export async function getSurveys(hospitalId?: string): Promise<SurveyData[]> {
         let allData = firstPageData ? [...firstPageData] : [];
         const totalCount = count || allData.length;
 
-        // If there are additional pages, fetch them in PARALLEL!
+        // If there are additional pages, fetch them in PARALLEL with full retry protection!
         if (totalCount > limit) {
           const totalPages = Math.ceil(totalCount / limit);
           const pagePromises = [];
@@ -429,19 +446,39 @@ export async function getSurveys(hospitalId?: string): Promise<SurveyData[]> {
               supabase
                 .from('ahrq_surveys')
                 .select('id, nama_rs, unit_kerja, jumlah_responden, tanggal_input, dimensi_scores, created_at')
-                .order('created_at', { ascending: false })
+                .order('created_at', { ascending: false, nullsFirst: false })
+                .order('id', { ascending: false })
                 .range(p * limit, (p + 1) * limit - 1)
             );
           }
           const pageResults = await Promise.all(pagePromises);
-          for (const res of pageResults) {
+          for (let p = 1; p < totalPages; p++) {
+            let res = pageResults[p - 1];
+            // Retry once if error occurred or data is empty while rows were expected
+            if (res.error || !res.data) {
+              console.warn(`Retry fetching ahrq_surveys page ${p} due to:`, res.error?.message);
+              res = await supabase
+                .from('ahrq_surveys')
+                .select('id, nama_rs, unit_kerja, jumlah_responden, tanggal_input, dimensi_scores, created_at')
+                .order('created_at', { ascending: false, nullsFirst: false })
+                .order('id', { ascending: false })
+                .range(p * limit, (p + 1) * limit - 1);
+            }
             if (res.data && res.data.length > 0) {
               allData = allData.concat(res.data);
             }
           }
         }
 
-        const allSurveys = allData.map(mapToSurveyData);
+        // Deduplicate rows deterministically by ID to guarantee 0 dropped records & 0 ghost duplicates
+        const uniqueMap = new Map<string, any>();
+        for (const row of allData) {
+          if (row && row.id && !uniqueMap.has(row.id)) {
+            uniqueMap.set(row.id, row);
+          }
+        }
+
+        const allSurveys = Array.from(uniqueMap.values()).map(mapToSurveyData);
         surveysCache.set('__all__', { data: allSurveys, expiry: Date.now() + SURVEYS_CACHE_TTL });
         return allSurveys;
       } catch (e: any) {

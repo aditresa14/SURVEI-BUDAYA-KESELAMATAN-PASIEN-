@@ -344,26 +344,23 @@ html, body {
 }
 
 /* ==========================================================================
-   JELLY BOUNCY EFFECT (Squash-and-Stretch Spring Physics)
+   JELLY BOUNCY EFFECT (Smooth & Elegant Elastic Spring Physics)
    ========================================================================== */
 @keyframes jelly-wobble {
   0% {
     transform: scale3d(1, 1, 1);
   }
-  30% {
-    transform: scale3d(1.18, 0.82, 1);
+  25% {
+    transform: scale3d(1.07, 0.93, 1);
   }
-  40% {
-    transform: scale3d(0.82, 1.18, 1);
-  }
-  55% {
-    transform: scale3d(1.10, 0.90, 1);
-  }
-  70% {
+  42% {
     transform: scale3d(0.95, 1.05, 1);
   }
-  85% {
+  60% {
     transform: scale3d(1.03, 0.97, 1);
+  }
+  78% {
+    transform: scale3d(0.98, 1.02, 1);
   }
   100% {
     transform: scale3d(1, 1, 1);
@@ -385,13 +382,13 @@ html, body {
 }
 
 .btn-jelly:hover {
-  animation: jelly-wobble 0.75s cubic-bezier(0.25, 0.8, 0.25, 1) both;
+  animation: jelly-wobble 1.15s cubic-bezier(0.25, 1, 0.35, 1) both;
 }
 
 .btn-jelly:active {
   animation: none !important;
-  transform: scale3d(0.90, 0.82, 1) !important;
-  transition: transform 0.08s ease-out !important;
+  transform: scale3d(0.95, 0.92, 1) !important;
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
 }
 
 

@@ -157,34 +157,35 @@ export default function WelcomeScreen({ onEnter, activeLogo }: WelcomeScreenProp
                 e.currentTarget.animate(
                   [
                     { transform: 'scale3d(1, 1, 1)' },
-                    { transform: 'scale3d(1.18, 0.82, 1)', offset: 0.25 },
-                    { transform: 'scale3d(0.84, 1.16, 1)', offset: 0.45 },
-                    { transform: 'scale3d(1.09, 0.91, 1)', offset: 0.65 },
-                    { transform: 'scale3d(0.96, 1.04, 1)', offset: 0.82 },
+                    { transform: 'scale3d(1.07, 0.93, 1)', offset: 0.25 },
+                    { transform: 'scale3d(0.95, 1.05, 1)', offset: 0.45 },
+                    { transform: 'scale3d(1.03, 0.97, 1)', offset: 0.65 },
+                    { transform: 'scale3d(0.98, 1.02, 1)', offset: 0.82 },
                     { transform: 'scale3d(1, 1, 1)' }
                   ],
-                  { duration: 720, easing: 'cubic-bezier(0.25, 0.8, 0.25, 1)' }
+                  { duration: 1100, easing: 'cubic-bezier(0.25, 1, 0.35, 1)' }
                 );
               }}
               onPointerDown={(e) => {
                 e.currentTarget.animate(
                   [
                     { transform: 'scale3d(1, 1, 1)' },
-                    { transform: 'scale3d(1.15, 0.84, 1)' }
+                    { transform: 'scale3d(0.95, 0.92, 1)' }
                   ],
-                  { duration: 110, easing: 'ease-out', fill: 'forwards' }
+                  { duration: 180, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' }
                 );
               }}
               onClick={(e) => {
                 const anim = e.currentTarget.animate(
                   [
-                    { transform: 'scale3d(1.16, 0.82, 1)' },
-                    { transform: 'scale3d(0.85, 1.15, 1)', offset: 0.35 },
-                    { transform: 'scale3d(1.08, 0.92, 1)', offset: 0.68 },
-                    { transform: 'scale3d(0.98, 1.02, 1)', offset: 0.86 },
+                    { transform: 'scale3d(0.95, 0.92, 1)' },
+                    { transform: 'scale3d(1.07, 0.93, 1)', offset: 0.28 },
+                    { transform: 'scale3d(0.96, 1.04, 1)', offset: 0.52 },
+                    { transform: 'scale3d(1.02, 0.98, 1)', offset: 0.74 },
+                    { transform: 'scale3d(0.99, 1.01, 1)', offset: 0.88 },
                     { transform: 'scale3d(1, 1, 1)' }
                   ],
-                  { duration: 280, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+                  { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
                 );
                 anim.onfinish = () => onEnter();
               }}

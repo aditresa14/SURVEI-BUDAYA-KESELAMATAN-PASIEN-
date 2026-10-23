@@ -749,7 +749,7 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
     { id: 11, code: 'A11', text: 'Kecepatan kerja di unit ini sangat terburu-buru sehingga berdampak negatif pada keselamatan pasien', dim: 'd2', isReversed: true },
     { id: 12, code: 'A12', text: 'Di unit ini, setiap perubahan untuk meningkatkan keselamatan pasien dilakukan evaluasi, untuk melihat seberapa baik perubahan tersebut bekerja', dim: 'd3' },
     { id: 13, code: 'A13', text: 'Di unit ini, dukungan bagi staf yang terlibat dalam kesalahan keselamatan pasien masih kurang', dim: 'd4', isReversed: true },
-    { id: 14, code: 'A14', text: 'Di unit ini, masalah keselamatan pasien yang sama memungkinkan dapat terus terjadi', dim: 'd4', isReversed: true }
+    { id: 14, code: 'A14', text: 'Di unit ini, masalah keselamatan pasien yang sama memungkinkan dapat terus terjadi', dim: 'd3', isReversed: true }
   ];
 
   const STATEMENTS_B = [
@@ -1068,8 +1068,8 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
     return {
       d1: getAverage([getVal(ansA[1]), getVal(ansA[8]), getVal(ansA[9], true)]),
       d2: getAverage([getVal(ansA[2]), getVal(ansA[3], true), getVal(ansA[5], true), getVal(ansA[11], true)]),
-      d3: getAverage([getVal(ansA[4]), getVal(ansA[12])]),
-      d4: getAverage([getVal(ansA[6], true), getVal(ansA[7], true), getVal(ansA[10]), getVal(ansA[13], true), getVal(ansA[14], true)]),
+      d3: getAverage([getVal(ansA[4]), getVal(ansA[12]), getVal(ansA[14], true)]),
+      d4: getAverage([getVal(ansA[6], true), getVal(ansA[7], true), getVal(ansA[10]), getVal(ansA[13], true)]),
       d5: getAverage([getVal(ansB[1]), getVal(ansB[2], true), getVal(ansB[3])]),
       d6: getAverage([getVal(ansC[4]), getVal(ansC[5]), getVal(ansC[6]), getVal(ansC[7], true)]),
       d7: getAverage([getVal(ansC[1]), getVal(ansC[2]), getVal(ansC[3])]),

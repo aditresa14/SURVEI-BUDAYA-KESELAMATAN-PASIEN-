@@ -135,7 +135,7 @@ const STATEMENTS_A = [
   { id: 11, code: 'A11', text: 'Kecepatan kerja di unit ini sangat terburu-buru sehingga berdampak negatif pada keselamatan pasien', dim: 'd2', isReversed: true },
   { id: 12, code: 'A12', text: 'Di unit ini, setiap perubahan untuk meningkatkan keselamatan pasien dilakukan evaluasi, untuk melihat seberapa baik perubahan tersebut bekerja', dim: 'd3' },
   { id: 13, code: 'A13', text: 'Di unit ini, dukungan bagi staf yang terlibat dalam kesalahan keselamatan pasien masih kurang', dim: 'd4', isReversed: true },
-  { id: 14, code: 'A14', text: 'Di unit ini, masalah keselamatan pasien yang sama memungkinkan dapat terus terjadi', dim: 'd4', isReversed: true }
+  { id: 14, code: 'A14', text: 'Di unit ini, masalah keselamatan pasien yang sama memungkinkan dapat terus terjadi', dim: 'd3', isReversed: true }
 ];
 
 const STATEMENTS_B = [
@@ -318,20 +318,18 @@ export default function LaporanTab({
 
       if (role === 'admin') return true;
 
-      // Filter to only include the active hospital's data
-      const surveyUser = (s.dimensiScores as any)?.username || s.unitKerja;
-      const surveyHospitalId = (s.dimensiScores as any)?.hospital_id;
-      
-      const matchesRS = surveyUser?.toLowerCase() === identifier.toLowerCase() || 
-                        surveyHospitalId === hospitalId || 
-                        s.namaRs.toLowerCase() === (namaRs || '').toLowerCase();
-                        
-      return matchesRS;
+      return isHospitalMatch(s, identifier, hospitalId, namaRs);
     });
   }, [surveys, role, identifier, hospitalId, namaRs]);
 
-  // Auto-select latest year with data on mount / data change
+  const lastAutoSelectedKeyRef = useRef<string>('');
+
+  // Auto-select latest year with data once per hospital context (without overwriting manual selection on background sync)
   React.useEffect(() => {
+    const contextKey = `${role}:${identifier}:${hospitalId}:${namaRs}`;
+    if (lastAutoSelectedKeyRef.current === contextKey) return;
+    if (validSurveys.length === 0) return;
+
     const yearsWithData = new Set<string>();
     validSurveys.forEach(s => {
       const yr = extractYear(s.tanggalInput);
@@ -340,8 +338,9 @@ export default function LaporanTab({
     const sortedYears = Array.from(yearsWithData).sort((a, b) => b.localeCompare(a));
     if (sortedYears.length > 0) {
       setSelectedYear(sortedYears[0]);
+      lastAutoSelectedKeyRef.current = contextKey;
     }
-  }, [validSurveys]);
+  }, [validSurveys, role, identifier, hospitalId, namaRs]);
 
   // Extract available years
   const availableYears = useMemo(() => {

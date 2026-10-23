@@ -1135,20 +1135,31 @@ export async function deleteHospitalAccountPermanently(id: string, performedBy: 
   const accounts = await getHospitalAccounts();
   const target = accounts.find((a: any) => a.id === id);
   const rsName = target?.namaRs || '';
+  const rsUsername = target?.username || '';
 
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
-      await Promise.allSettled([
-        supabase.from('hospital_accounts').delete().eq('id', id),
-        supabase.from('hospital_accounts').delete().ilike('nama_rs', rsName),
-        supabase.from('surveys').delete().eq('hospital_id', id),
-        supabase.from('surveys').delete().ilike('nama_rs', rsName),
-        supabase.from('survey_submissions').delete().eq('rs_id', id),
-        supabase.from('survey_submissions').delete().ilike('nama_rs', rsName),
-        supabase.from('benchmark_requests').delete().or(`requester_id.eq.${id},target_id.eq.${id}`),
-        supabase.from('benchmark_requests').delete().or(`requester_name.ilike.${rsName},target_name.ilike.${rsName}`)
-      ]);
+      const deleteTasks: Promise<any>[] = [
+        Promise.resolve(supabase.from('hospital_accounts').delete().eq('id', id)),
+        Promise.resolve(supabase.from('ahrq_surveys').delete().eq('unit_kerja', id)),
+        Promise.resolve(supabase.from('survey_submissions').delete().eq('rs_id', id)),
+        Promise.resolve(supabase.from('benchmark_requests').delete().or(`requester_id.eq.${id},target_id.eq.${id}`))
+      ];
+      if (rsName) {
+        deleteTasks.push(
+          Promise.resolve(supabase.from('hospital_accounts').delete().ilike('nama_rs', rsName)),
+          Promise.resolve(supabase.from('ahrq_surveys').delete().ilike('nama_rs', rsName)),
+          Promise.resolve(supabase.from('survey_submissions').delete().ilike('nama_rs', rsName)),
+          Promise.resolve(supabase.from('benchmark_requests').delete().or(`requester_name.ilike.${rsName},target_name.ilike.${rsName}`))
+        );
+      }
+      if (rsUsername) {
+        deleteTasks.push(
+          Promise.resolve(supabase.from('ahrq_surveys').delete().ilike('unit_kerja', rsUsername))
+        );
+      }
+      await Promise.allSettled(deleteTasks);
     } catch (e) {
       console.error("Error permanently deleting hospital account from Supabase:", e);
     }

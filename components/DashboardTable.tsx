@@ -58,6 +58,7 @@ interface DashboardTableProps {
   identifier?: string;
   hospitalId?: string;
   selectedRsFilter?: string;
+  selectedYear?: string;
   accounts?: any[];
   surveys?: SurveyData[];
 }
@@ -316,6 +317,7 @@ export default function DashboardTable({
   identifier, 
   hospitalId, 
   selectedRsFilter, 
+  selectedYear,
   accounts,
   surveys: propSurveys 
 }: DashboardTableProps) {
@@ -345,7 +347,13 @@ export default function DashboardTable({
   const [filterUnit, setFilterUnit] = useState('Semua Unit');
   const [filterProfesi, setFilterProfesi] = useState('Semua Profesi');
   const [filterJabatan, setFilterJabatan] = useState('Semua Jabatan');
-  const [filterTahun, setFilterTahun] = useState(() => new Date().getFullYear().toString());
+  const [filterTahun, setFilterTahun] = useState(() => selectedYear || 'Semua Tahun');
+
+  useEffect(() => {
+    if (selectedYear) {
+      setFilterTahun(selectedYear);
+    }
+  }, [selectedYear]);
 
   // Trigger SWR Manual Refresh
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -364,12 +372,14 @@ export default function DashboardTable({
     return 'Lainnya';
   };
 
-  // Extract Months from Indonesian text
+  // Extract Months & Years consistently with Dashboard.tsx
   const parseMonthYear = (dateStr: string) => {
-    if (!dateStr) return { month: 'Lainnya', year: 'Lainnya' };
-    const parts = dateStr.split(' ');
+    const fallbackYear = new Date().getFullYear().toString();
+    if (!dateStr) return { month: 'Lainnya', year: fallbackYear };
+    const parts = dateStr.trim().split(/\s+/);
     if (parts.length >= 3) {
-      return { month: parts[1], year: parts[2] };
+      const yrMatch = dateStr.match(/\b(20\d{2}|19\d{2})\b/);
+      return { month: parts[1], year: yrMatch ? yrMatch[1] : parts[parts.length - 1] };
     }
     // If it's YYYY-MM-DD or standard Date ISO string
     const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -383,7 +393,8 @@ export default function DashboardTable({
       const month = monthsIndo[monthNum - 1] || 'Lainnya';
       return { month, year };
     }
-    return { month: 'Lainnya', year: dateStr.slice(-4) || 'Lainnya' };
+    const yrMatch = dateStr.match(/\b(20\d{2}|19\d{2})\b/);
+    return { month: 'Lainnya', year: yrMatch ? yrMatch[1] : (dateStr.slice(-4) || fallbackYear) };
   };
 
   // Dynamic filter values extraction based on active surveys

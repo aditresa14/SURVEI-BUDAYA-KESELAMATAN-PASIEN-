@@ -66,6 +66,13 @@ export default function Home() {
   const handleLogout = () => {
     setScreen('welcome');
     setIdentifier('');
+    setHospitalId('');
+    setNamaRs('');
+    setRole('rs');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('ahrq_active_benchmark_id');
+      localStorage.removeItem('ahrq_active_comparison_year');
+    }
   };
 
   return (

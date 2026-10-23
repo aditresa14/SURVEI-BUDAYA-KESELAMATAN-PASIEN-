@@ -214,11 +214,11 @@ const BENCHMARK_ITEMS: Record<string, number> = {
   // d9 (Dukungan Manajemen RS: Avg 67.5%)
   'F1': 68.0, 'F2': 65.0, 'F3': 70.0,
   // d3 (Pembelajaran Organisasi: Avg 71%)
-  'A4': 72.0, 'A12': 70.0,
+  'A4': 72.0, 'A12': 70.0, 'A14': 62.0,
   // d8 (Frekuensi Pelaporan Kejadian: Avg 71%)
   'D1': 69.0, 'D2': 73.0,
   // d4 (Respon Non-Punitif: Avg 59.5%)
-  'A6': 58.0, 'A7': 56.0, 'A10': 64.0, 'A13': 58.0, 'A14': 62.0,
+  'A6': 58.0, 'A7': 56.0, 'A10': 64.0, 'A13': 58.0,
   // d2 (Ketenagaan dan Beban Kerja: Avg 45%)
   'A2': 44.0, 'A3': 46.0, 'A5': 42.0, 'A11': 48.0,
   // d5 (Dukungan Supervisor: Avg 79%)

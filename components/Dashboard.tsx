@@ -950,8 +950,9 @@ export default function Dashboard({
               identifier={identifier} 
               hospitalId={hospitalId} 
               selectedRsFilter={selectedRsFilter} 
+              selectedYear={selectedYear}
               accounts={accounts} 
-              surveys={validSurveys}
+              surveys={filteredSurveys}
             />
 
           </div>

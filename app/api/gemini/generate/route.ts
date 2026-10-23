@@ -17,18 +17,21 @@ export async function POST(req: NextRequest) {
   try {
     const { prompt, model } = await req.json();
     
-    const requestedModel = model || "gemini-3.6-flash";
+    const requestedModel = model || "gemini-2.5-flash";
     const modelsToTry = [requestedModel];
-    if (requestedModel !== "gemini-3.1-flash-lite") {
-      modelsToTry.push("gemini-3.1-flash-lite");
+    if (!modelsToTry.includes("gemini-2.5-flash")) {
+      modelsToTry.push("gemini-2.5-flash");
+    }
+    if (!modelsToTry.includes("gemini-2.0-flash")) {
+      modelsToTry.push("gemini-2.0-flash");
     }
     
     let lastError: any = null;
     let response = null;
     
     for (const targetModel of modelsToTry) {
-      // Try 1 time for the first model, and 2 times for the fallback model
-      const attempts = targetModel === "gemini-3.1-flash-lite" ? 2 : 1;
+      // Try 1 time for the first model, and 2 times for fallback models
+      const attempts = targetModel === requestedModel ? 1 : 2;
       
       for (let i = 0; i < attempts; i++) {
         try {

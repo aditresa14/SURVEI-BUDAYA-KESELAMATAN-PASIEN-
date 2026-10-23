@@ -5,9 +5,9 @@ import WelcomeScreen from '../components/WelcomeScreen';
 import LoginScreen from '../components/LoginScreen';
 import RegisterScreen from '../components/RegisterScreen';
 import Dashboard from '../components/Dashboard';
-import { getWallpaper, WallpaperData } from '../lib/wallpaper';
-import { getLogo, LogoData } from '../lib/logo';
-import { getHeaderImage, HeaderImageData } from '../lib/headerBanner';
+import { getWallpaper, getCachedWallpaperSync, getCachedWallpaperAsync, WallpaperData } from '../lib/wallpaper';
+import { getLogo, getCachedLogoSync, getCachedLogoAsync, LogoData } from '../lib/logo';
+import { getHeaderImage, getCachedHeaderImageSync, getCachedHeaderImageAsync, HeaderImageData } from '../lib/headerBanner';
 import { getSurveys, getHospitalAccounts } from '../lib/db';
 
 export default function Home() {
@@ -23,27 +23,53 @@ export default function Home() {
   // Keep list of registered hospitals in state so they persist during active session
   const [registeredHospitals, setRegisteredHospitals] = useState<Array<{ username: string; kodeRs: string; namaRs: string }>>([]);
 
-  // Load wallpaper, logo, header image AND eagerly prefetch surveys + accounts concurrently on mount
+  // Load wallpaper, logo, header image INSTANTLY from local cache, then revalidate in background
   useEffect(() => {
-    // Eagerly warm up surveys and hospital accounts cache in the background while user is on Welcome/Login screen
-    getSurveys().catch(() => null);
-    getHospitalAccounts().catch(() => null);
+    // 1. Synchronous 0ms hydration from localStorage (prevents initial blank white flash)
+    const syncWallpaper = getCachedWallpaperSync();
+    const syncLogo = getCachedLogoSync();
+    const syncHeader = getCachedHeaderImageSync();
+    if (syncWallpaper) setWallpaper(syncWallpaper);
+    if (syncLogo) setActiveLogo(syncLogo);
+    if (syncHeader) setActiveHeaderImage(syncHeader);
 
-    async function loadPreferences() {
-      try {
-        const [savedWallpaper, savedLogo, savedHeaderImage] = await Promise.all([
-          getWallpaper().catch(() => null),
-          getLogo().catch(() => null),
-          getHeaderImage().catch(() => null),
-        ]);
-        if (savedWallpaper) setWallpaper(savedWallpaper);
-        if (savedLogo) setActiveLogo(savedLogo);
-        if (savedHeaderImage) setActiveHeaderImage(savedHeaderImage);
-      } catch (e) {
-        console.warn("Gagal memuat preferensi tampilan:", e);
-      }
+    // 2. Fast (~5ms) hydration from IndexedDB for large Base64 images/videos that exceeded localStorage quota
+    if (!syncWallpaper) {
+      getCachedWallpaperAsync().then(cached => {
+        if (cached) setWallpaper(prev => prev || cached);
+      }).catch(() => null);
     }
-    loadPreferences();
+    if (!syncLogo) {
+      getCachedLogoAsync().then(cached => {
+        if (cached) setActiveLogo(prev => prev || cached);
+      }).catch(() => null);
+    }
+    if (!syncHeader) {
+      getCachedHeaderImageAsync().then(cached => {
+        if (cached) setActiveHeaderImage(prev => prev || cached);
+      }).catch(() => null);
+    }
+
+    // 3. Revalidate each visual asset INDEPENDENTLY from Supabase (do not block logo behind large wallpaper)
+    getLogo()
+      .then(freshLogo => { if (freshLogo) setActiveLogo(freshLogo); })
+      .catch(() => null);
+
+    getWallpaper()
+      .then(freshWallpaper => { if (freshWallpaper) setWallpaper(freshWallpaper); })
+      .catch(() => null);
+
+    getHeaderImage()
+      .then(freshHeader => { if (freshHeader) setActiveHeaderImage(freshHeader); })
+      .catch(() => null);
+
+    // 4. Defer heavy background data warmup slightly (350ms) so Welcome Screen visual assets get 100% network priority first
+    const warmupTimer = setTimeout(() => {
+      getSurveys().catch(() => null);
+      getHospitalAccounts().catch(() => null);
+    }, 350);
+
+    return () => clearTimeout(warmupTimer);
   }, []);
 
   const handleLoginSuccess = (userRole: 'rs' | 'admin', userId: string, rsName: string, idHospital?: string) => {

@@ -1,9 +1,42 @@
-import { getSupabaseClient, getAppSetting, setAppSetting, deleteAppSetting } from './supabase';
+import { getSupabaseClient, getAppSetting, setAppSetting, deleteAppSetting, readIdbMediaCache, writeIdbMediaCache, deleteIdbMediaCache } from './supabase';
 
 export interface HeaderImageData {
   url: string;
   position?: 'center' | 'center-right' | 'top-right' | 'bottom-right';
   updated_at?: string;
+}
+
+// Synchronous 0ms read from localStorage for instant initial render
+export function getCachedHeaderImageSync(): HeaderImageData | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const url = localStorage.getItem('dashboard_header_image_url');
+    const position = (localStorage.getItem('dashboard_header_image_pos') || 'center-right') as HeaderImageData['position'];
+    if (url) {
+      return { url, position };
+    }
+  } catch {
+    // Ignore storage read errors
+  }
+  return null;
+}
+
+// Fast (~5ms) local read from localStorage + IndexedDB
+export async function getCachedHeaderImageAsync(): Promise<HeaderImageData | null> {
+  const syncCached = getCachedHeaderImageSync();
+  if (syncCached) return syncCached;
+  return await readIdbMediaCache<HeaderImageData>('dashboard_header_image');
+}
+
+function persistHeaderImageLocally(data: HeaderImageData) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem('dashboard_header_image_url', data.url);
+    localStorage.setItem('dashboard_header_image_pos', data.position || 'center-right');
+  } catch {
+    // Quota exceeded in localStorage; IndexedDB below will store it reliably
+  }
+  writeIdbMediaCache('dashboard_header_image', data).catch(() => null);
 }
 
 // Convert Base64 string to a Blob
@@ -79,14 +112,7 @@ export async function getHeaderImage(): Promise<HeaderImageData | null> {
           position: val.position || 'center-right',
           updated_at: val.updated_at
         };
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem('dashboard_header_image_url', result.url);
-            localStorage.setItem('dashboard_header_image_pos', result.position || 'center-right');
-          } catch {
-            // Ignore quota issues
-          }
-        }
+        persistHeaderImageLocally(result);
         return result;
       }
     } catch (e) {
@@ -94,16 +120,8 @@ export async function getHeaderImage(): Promise<HeaderImageData | null> {
     }
   }
 
-  // 2. Fallback to Local Storage
-  if (typeof window !== 'undefined') {
-    const url = localStorage.getItem('dashboard_header_image_url');
-    const position = (localStorage.getItem('dashboard_header_image_pos') || 'center-right') as HeaderImageData['position'];
-    if (url) {
-      return { url, position };
-    }
-  }
-
-  return null;
+  // 2. Fallback to Local Storage / IndexedDB
+  return await getCachedHeaderImageAsync();
 }
 
 export async function saveHeaderImage(
@@ -173,30 +191,16 @@ export async function saveHeaderImage(
       });
     } catch (dbErr: any) {
       console.error("Gagal menyimpan header image ke database Supabase:", dbErr);
-      // Fallback to localStorage
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('dashboard_header_image_url', finalUrl);
-          localStorage.setItem('dashboard_header_image_pos', position);
-        } catch (e) {
-          console.warn("Gagal menyimpan gambar header ke localStorage:", e);
-        }
-      }
+      persistHeaderImageLocally({ url: finalUrl, position });
       throw new Error(`Gagal menyimpan konfigurasi gambar header ke database: ${dbErr?.message || dbErr}`);
     }
   }
 
-  // Always update localStorage as instant cache & fallback
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem('dashboard_header_image_url', finalUrl);
-      localStorage.setItem('dashboard_header_image_pos', position);
-    } catch (e) {
-      console.warn("Gagal menyimpan gambar header ke localStorage:", e);
-    }
-  }
+  // Always update localStorage + IndexedDB as instant cache & fallback
+  const finalResult: HeaderImageData = { url: finalUrl, position, updated_at: new Date().toISOString() };
+  persistHeaderImageLocally(finalResult);
 
-  return { url: finalUrl, position, updated_at: new Date().toISOString() };
+  return finalResult;
 }
 
 export async function clearHeaderImage(): Promise<void> {
@@ -212,6 +216,8 @@ export async function clearHeaderImage(): Promise<void> {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('dashboard_header_image_url');
     localStorage.removeItem('dashboard_header_image_pos');
+    await deleteIdbMediaCache('dashboard_header_image');
   }
 }
+
 

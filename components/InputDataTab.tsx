@@ -794,6 +794,42 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
 
 
 
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftHydratedKeyRef = useRef<string>('');
+
+  // Restore saved questionnaire draft from localStorage when hospital/draftKey is ready
+  useEffect(() => {
+    if (typeof window === 'undefined' || !draftKey) return;
+    if (draftHydratedKeyRef.current === draftKey) return;
+    draftHydratedKeyRef.current = draftKey;
+
+    try {
+      const savedRaw = localStorage.getItem(draftKey);
+      if (!savedRaw) return;
+      const parsed = JSON.parse(savedRaw);
+      if (parsed && typeof parsed === 'object') {
+        if (typeof parsed.responderName === 'string') setResponderName(parsed.responderName);
+        if (typeof parsed.posisiStaf === 'string') setPosisiStaf(parsed.posisiStaf);
+        if (typeof parsed.customPosisiStaf === 'string') setCustomPosisiStaf(parsed.customPosisiStaf);
+        if (typeof parsed.unitKerja === 'string') setUnitKerja(parsed.unitKerja);
+        if (typeof parsed.customUnitKerja === 'string') setCustomUnitKerja(parsed.customUnitKerja);
+        if (parsed.ansA && typeof parsed.ansA === 'object') setAnsA(parsed.ansA);
+        if (parsed.ansB && typeof parsed.ansB === 'object') setAnsB(parsed.ansB);
+        if (parsed.ansC && typeof parsed.ansC === 'object') setAnsC(parsed.ansC);
+        if (parsed.ansD && typeof parsed.ansD === 'object') setAnsD(parsed.ansD);
+        if (typeof parsed.ansE === 'number') setAnsE(parsed.ansE);
+        if (parsed.ansF && typeof parsed.ansF === 'object') setAnsF(parsed.ansF);
+        if (parsed.ansG && typeof parsed.ansG === 'object') setAnsG(parsed.ansG);
+        if (typeof parsed.komentar === 'string') setKomentar(parsed.komentar);
+        if (typeof parsed.step === 'number' && parsed.step >= 0 && parsed.step <= 9) {
+          setStep(parsed.step);
+        }
+      }
+    } catch (e) {
+      console.warn('Gagal memuat draf kuesioner dari penyimpanan lokal:', e);
+    }
+  }, [draftKey]);
+
   // Automatically scroll to the top of the page / container when step changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -811,8 +847,55 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
     }
   }, [step]);
 
+  // Persist current step in draft when navigating between steps 0..9 if user has already started filling
+  useEffect(() => {
+    if (typeof window === 'undefined' || !draftKey || step >= 10) return;
+    try {
+      const existingRaw = localStorage.getItem(draftKey);
+      if (existingRaw) {
+        const parsed = JSON.parse(existingRaw);
+        if (parsed && typeof parsed === 'object' && parsed.step !== step) {
+          parsed.step = step;
+          localStorage.setItem(draftKey, JSON.stringify(parsed));
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }, [step, draftKey]);
+
   // Save draft whenever answers change
-  const triggerAutoSave = (data: any) => {};
+  const triggerAutoSave = (data: any) => {
+    if (typeof window === 'undefined' || !draftKey) return;
+    try {
+      const draftPayload = {
+        responderName,
+        posisiStaf,
+        customPosisiStaf,
+        unitKerja,
+        customUnitKerja,
+        ansA,
+        ansB,
+        ansC,
+        ansD,
+        ansE,
+        ansF,
+        ansG,
+        komentar,
+        step: step < 10 ? step : 0,
+        ...data,
+        updatedAt: Date.now()
+      };
+      localStorage.setItem(draftKey, JSON.stringify(draftPayload));
+      setAutoSavePulse(true);
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = setTimeout(() => {
+        setAutoSavePulse(false);
+      }, 1500);
+    } catch (e) {
+      console.warn('Gagal menyimpan draf otomatis:', e);
+    }
+  };
 
   // Auto-scroll to next question helper
   const scrollToQuestion = (nextId: string) => {
@@ -1201,7 +1284,9 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
     if (confirm('Apakah Anda yakin ingin mengosongkan draf survei aktif?')) {
       setResponderName('');
       setPosisiStaf('');
+      setCustomPosisiStaf('');
       setUnitKerja('');
+      setCustomUnitKerja('');
       setAnsA({});
       setAnsB({});
       setAnsC({});
@@ -1211,8 +1296,12 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
       setAnsG({});
       setKomentar('');
       setStep(0);
-      if (typeof window !== 'undefined') {
-        
+      if (typeof window !== 'undefined' && draftKey) {
+        try {
+          localStorage.removeItem(draftKey);
+        } catch {
+          // Ignore storage error
+        }
       }
     }
   };
@@ -1276,8 +1365,12 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
       setIsSubmitting(false);
       setShowConfirmModal(false);
       setStep(10); // Success step
-      if (typeof window !== 'undefined') {
-        
+      if (typeof window !== 'undefined' && draftKey) {
+        try {
+          localStorage.removeItem(draftKey);
+        } catch {
+          // Ignore storage error
+        }
       }
     } catch (err: any) {
       console.error("Kesalahan menyimpan kuesioner:", err);
@@ -1455,10 +1548,21 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
                     className="flex items-center gap-1.5 text-[11px] font-bold text-[#2FA7A7] bg-white px-3 py-1.5 rounded-xl border border-white/80 shadow-md"
                   >
                     <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Tersimpan</span>
+                    <span>Draf Tersimpan</span>
                   </motion.div>
                 )}
               </AnimatePresence>
+              {step < 10 && (answeredCount > 0 || Boolean(posisiStaf) || Boolean(unitKerja)) && (
+                <button
+                  type="button"
+                  onClick={handleResetForm}
+                  title="Kosongkan Draf Kuesioner"
+                  className="flex items-center gap-1.5 bg-white/95 hover:bg-rose-50 text-rose-600 border border-white/90 px-3 py-2.5 rounded-xl text-xs font-bold transition-all shadow-[0_4px_12px_rgba(0,0,0,0.18),0_2px_4px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Reset Draf</span>
+                </button>
+              )}
               {!isPublic && (
                 <button
                   onClick={() => setShowLinkModal(true)}
@@ -2621,7 +2725,9 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
                       onClick={() => {
                         setResponderName('');
                         setPosisiStaf('');
+                        setCustomPosisiStaf('');
                         setUnitKerja('');
+                        setCustomUnitKerja('');
                         setAnsA({});
                         setAnsB({});
                         setAnsC({});
@@ -2631,6 +2737,13 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
                         setAnsG({});
                         setKomentar('');
                         setStep(0);
+                        if (typeof window !== 'undefined' && draftKey) {
+                          try {
+                            localStorage.removeItem(draftKey);
+                          } catch {
+                            // Ignore storage error
+                          }
+                        }
                       }}
                       className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all transform-gpu shadow-md shadow-emerald-600/10"
                     >

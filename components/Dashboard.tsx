@@ -24,7 +24,9 @@ import {
   Briefcase,
   Award,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Search,
+  Download
 } from 'lucide-react';
 import useSWR, { mutate as globalMutate } from 'swr';
 import InputDataTab from './InputDataTab';
@@ -104,6 +106,7 @@ export default function Dashboard({
   }, [activeTab]);
 
   const [showRespondentsModal, setShowRespondentsModal] = useState(false);
+  const [respondentSearch, setRespondentSearch] = useState('');
   const [showUnitsModal, setShowUnitsModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [surveyToDelete, setSurveyToDelete] = useState<string | null>(null);
@@ -1036,85 +1039,199 @@ export default function Dashboard({
 
         {/* Respondents Modal */}
         <AnimatePresence>
-          {showRespondentsModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowRespondentsModal(false)}
-                className="absolute inset-0 bg-slate-950/40 backdrop-blur-xs"
-              />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="relative w-full max-w-4xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-2xl rounded-[22px] overflow-hidden flex flex-col max-h-[85vh] text-slate-800"
-              >
-                <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
-                  <div>
-                    <h2 className="text-xl font-sans font-bold text-slate-800 flex items-center gap-2">
-                      <Users className="w-5 h-5 text-teal-600" />
-                      Daftar Responden
-                    </h2>
-                    <p className="text-sm text-slate-500 mt-1 font-medium">Data staf yang telah berpartisipasi mengisi kuesioner.</p>
-                  </div>
-                  <button
-                    onClick={() => setShowRespondentsModal(false)}
-                    className="p-2 rounded-lg bg-slate-100 text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-                
-                <div className="flex-1 overflow-y-auto p-0">
-                  <table className="w-full text-sm text-left text-slate-700">
-                    <thead className="text-xs text-slate-600 uppercase bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
-                      <tr>
-                        <th className="px-6 py-4 font-bold">No</th>
-                        <th className="px-6 py-4 font-bold">Tanggal Input</th>
-                        <th className="px-6 py-4 font-bold">Posisi Staf</th>
-                        <th className="px-6 py-4 font-bold">Unit/Area Kerja</th>
-                        {(role === 'admin' || role === 'rs') && <th className="px-6 py-4 font-bold text-center">Aksi</th>}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-150">
-                      {filteredSurveys.length > 0 ? (
-                        filteredSurveys.map((survey, index) => {
-                          const rawAnswers = (survey.dimensiScores as any)?._rawAnswers || {};
-                          return (
-                            <tr key={survey.id} className="hover:bg-slate-50 transition-colors">
-                              <td className="px-6 py-4 whitespace-nowrap font-medium text-slate-500">{index + 1}</td>
-                              <td className="px-6 py-4 whitespace-nowrap font-semibold text-slate-600">{survey.tanggalInput}</td>
-                              <td className="px-6 py-4 whitespace-nowrap font-medium text-slate-800">{rawAnswers.posisiStaf || '-'}</td>
-                              <td className="px-6 py-4 whitespace-nowrap font-medium text-slate-700">{survey.unitKerja || '-'}</td>
-                              {(role === 'admin' || role === 'rs') && (
-                                <td className="px-6 py-4 whitespace-nowrap text-center">
-                                  <button
-                                    onClick={() => handleDeleteSurvey(survey.id)}
-                                    className="p-2 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-600 hover:text-white transition-all transform-gpu border border-rose-200 hover:border-transparent inline-flex items-center justify-center cursor-pointer"
-                                    title="Hapus Responden"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </td>
-                              )}
-                            </tr>
-                          );
-                        })
-                      ) : (
-                        <tr>
-                          <td colSpan={(role === 'admin' || role === 'rs') ? 5 : 4} className="px-6 py-8 text-center text-slate-400 font-medium">
-                            Belum ada data responden.
-                          </td>
-                        </tr>
+          {showRespondentsModal && (() => {
+            const query = respondentSearch.trim().toLowerCase();
+            const searchedRespondents = filteredSurveys.filter((survey) => {
+              if (!query) return true;
+              const rawAnswers = (survey.dimensiScores as any)?._rawAnswers || {};
+              const posisi = String(rawAnswers.posisiStaf || '').toLowerCase();
+              const unit = String(survey.unitKerja || '').toLowerCase();
+              const rs = String(survey.namaRs || '').toLowerCase();
+              const tgl = String(survey.tanggalInput || '').toLowerCase();
+              return posisi.includes(query) || unit.includes(query) || rs.includes(query) || tgl.includes(query);
+            });
+
+            const handleExportRespondentsCsv = () => {
+              if (searchedRespondents.length === 0) return;
+              const escapeCsv = (val: any) => {
+                const str = String(val ?? '').replace(/\r?\n|\r/g, ' ').trim();
+                return `"${str.replace(/"/g, '""')}"`;
+              };
+              const headers = role === 'admin'
+                ? ['No', 'Tanggal Input', 'Nama Rumah Sakit', 'Posisi Staf', 'Unit/Area Kerja', 'Komentar']
+                : ['No', 'Tanggal Input', 'Posisi Staf', 'Unit/Area Kerja', 'Komentar'];
+
+              const rows = searchedRespondents.map((survey, idx) => {
+                const rawAnswers = (survey.dimensiScores as any)?._rawAnswers || {};
+                const komentar = (survey as any).komentar || (survey.dimensiScores as any)?.komentar || rawAnswers.komentar || '-';
+                if (role === 'admin') {
+                  return [
+                    idx + 1,
+                    escapeCsv(survey.tanggalInput || '-'),
+                    escapeCsv(survey.namaRs || '-'),
+                    escapeCsv(rawAnswers.posisiStaf || '-'),
+                    escapeCsv(survey.unitKerja || '-'),
+                    escapeCsv(komentar)
+                  ].join(';');
+                }
+                return [
+                  idx + 1,
+                  escapeCsv(survey.tanggalInput || '-'),
+                  escapeCsv(rawAnswers.posisiStaf || '-'),
+                  escapeCsv(survey.unitKerja || '-'),
+                  escapeCsv(komentar)
+                ].join(';');
+              });
+
+              const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              const safeLabel = (role === 'admin' ? (selectedRsFilter === 'all' ? 'Semua_RS' : selectedRsFilter) : namaRs || 'RS')
+                .replace(/[^a-zA-Z0-9_-]/g, '_');
+              link.href = url;
+              link.setAttribute('download', `Daftar_Responden_${safeLabel}_${selectedYear.replace(/\s+/g, '_')}.csv`);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+            };
+
+            const totalColSpan = (role === 'admin' ? 5 : 4) + ((role === 'admin' || role === 'rs') ? 1 : 0);
+
+            return (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setShowRespondentsModal(false)}
+                  className="absolute inset-0 bg-slate-950/40 backdrop-blur-xs"
+                />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                  className="relative w-full max-w-5xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-2xl rounded-[22px] overflow-hidden flex flex-col max-h-[85vh] text-slate-800"
+                >
+                  <div className="p-6 border-b border-slate-200 flex flex-col gap-4 bg-slate-50/50">
+                    <div className="flex justify-between items-start gap-4">
+                      <div>
+                        <h2 className="text-xl font-sans font-bold text-slate-800 flex items-center gap-2">
+                          <Users className="w-5 h-5 text-teal-600" />
+                          Daftar Responden
+                          <span className="text-xs font-extrabold bg-teal-50 text-teal-700 border border-teal-200 px-2.5 py-0.5 rounded-full">
+                            {searchedRespondents.length} / {filteredSurveys.length}
+                          </span>
+                        </h2>
+                        <p className="text-sm text-slate-500 mt-1 font-medium">Data staf yang telah berpartisipasi mengisi kuesioner.</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleExportRespondentsCsv}
+                          disabled={searchedRespondents.length === 0}
+                          className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all border ${
+                            searchedRespondents.length > 0
+                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-sm cursor-pointer'
+                              : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                          }`}
+                          title="Unduh Daftar Responden (Excel / CSV)"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Export Excel / CSV</span>
+                        </button>
+                        <button
+                          onClick={() => setShowRespondentsModal(false)}
+                          className="p-2 rounded-lg bg-slate-100 text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors cursor-pointer"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Search Bar */}
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={respondentSearch}
+                        onChange={(e) => setRespondentSearch(e.target.value)}
+                        placeholder={
+                          role === 'admin'
+                            ? 'Cari nama rumah sakit, unit kerja, posisi staf, atau tanggal input...'
+                            : 'Cari unit kerja, posisi staf, atau tanggal input...'
+                        }
+                        className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-9 py-2.5 text-xs font-medium text-slate-800 placeholder-slate-400 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 transition-all"
+                      />
+                      {respondentSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setRespondentSearch('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          title="Bersihkan pencarian"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       )}
-                    </tbody>
-                  </table>
-                </div>
-              </motion.div>
-            </div>
-          )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto p-0">
+                    <table className="w-full text-sm text-left text-slate-700">
+                      <thead className="text-xs text-slate-600 uppercase bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
+                        <tr>
+                          <th className="px-6 py-4 font-bold">No</th>
+                          <th className="px-6 py-4 font-bold">Tanggal Input</th>
+                          {role === 'admin' && <th className="px-6 py-4 font-bold">Nama Rumah Sakit</th>}
+                          <th className="px-6 py-4 font-bold">Posisi Staf</th>
+                          <th className="px-6 py-4 font-bold">Unit/Area Kerja</th>
+                          {(role === 'admin' || role === 'rs') && <th className="px-6 py-4 font-bold text-center">Aksi</th>}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-150">
+                        {searchedRespondents.length > 0 ? (
+                          searchedRespondents.map((survey, index) => {
+                            const rawAnswers = (survey.dimensiScores as any)?._rawAnswers || {};
+                            return (
+                              <tr key={survey.id} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap font-medium text-slate-500">{index + 1}</td>
+                                <td className="px-6 py-4 whitespace-nowrap font-semibold text-slate-600">{survey.tanggalInput}</td>
+                                {role === 'admin' && (
+                                  <td className="px-6 py-4 whitespace-nowrap font-bold text-teal-700">{survey.namaRs || '-'}</td>
+                                )}
+                                <td className="px-6 py-4 whitespace-nowrap font-medium text-slate-800">{rawAnswers.posisiStaf || '-'}</td>
+                                <td className="px-6 py-4 whitespace-nowrap font-medium text-slate-700">{survey.unitKerja || '-'}</td>
+                                {(role === 'admin' || role === 'rs') && (
+                                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                                    <button
+                                      onClick={() => handleDeleteSurvey(survey.id)}
+                                      className="p-2 bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-600 hover:text-white transition-all transform-gpu border border-rose-200 hover:border-transparent inline-flex items-center justify-center cursor-pointer"
+                                      title="Hapus Responden"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan={totalColSpan} className="px-6 py-8 text-center text-slate-400 font-medium">
+                              {respondentSearch.trim()
+                                ? `Tidak ada responden yang cocok dengan pencarian "${respondentSearch}".`
+                                : 'Belum ada data responden.'}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </motion.div>
+              </div>
+            );
+          })()}
         </AnimatePresence>
 
         {/* Unit Kerja Terdata Modal */}

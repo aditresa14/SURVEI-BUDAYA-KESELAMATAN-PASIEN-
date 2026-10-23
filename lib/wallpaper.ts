@@ -1,8 +1,41 @@
-import { getSupabaseClient, getAppSetting, setAppSetting, deleteAppSetting } from './supabase';
+import { getSupabaseClient, getAppSetting, setAppSetting, deleteAppSetting, readIdbMediaCache, writeIdbMediaCache, deleteIdbMediaCache } from './supabase';
 
 export interface WallpaperData {
   url: string;
   type: 'image' | 'video';
+}
+
+// Synchronous 0ms read from localStorage for instant initial render
+export function getCachedWallpaperSync(): WallpaperData | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const url = localStorage.getItem('active_wallpaper_url');
+    const type = localStorage.getItem('active_wallpaper_type') as 'image' | 'video' | null;
+    if (url) {
+      return { url, type: type || 'image' };
+    }
+  } catch {
+    // Ignore storage read errors
+  }
+  return null;
+}
+
+// Fast (~5ms) local read from localStorage + IndexedDB (handles large Base64 images/videos >5MB)
+export async function getCachedWallpaperAsync(): Promise<WallpaperData | null> {
+  const syncCached = getCachedWallpaperSync();
+  if (syncCached) return syncCached;
+  return await readIdbMediaCache<WallpaperData>('wallpaper');
+}
+
+function persistWallpaperLocally(data: WallpaperData) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem('active_wallpaper_url', data.url);
+    localStorage.setItem('active_wallpaper_type', data.type);
+  } catch {
+    // Quota exceeded for large Base64/video in localStorage; IndexedDB below will store it reliably
+  }
+  writeIdbMediaCache('wallpaper', data).catch(() => null);
 }
 
 // Convert Base64 string to a Blob
@@ -67,7 +100,7 @@ export function compressWallpaperImageBase64(base64Str: string, maxDimension: nu
 }
 
 export async function getWallpaper(): Promise<WallpaperData | null> {
-  // 1. Try to fetch from Supabase
+  // 1. Try to fetch fresh setting from Supabase
   const supabase = getSupabaseClient();
   if (supabase) {
     try {
@@ -77,14 +110,7 @@ export async function getWallpaper(): Promise<WallpaperData | null> {
           url: val.url,
           type: val.type || 'image'
         };
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem('active_wallpaper_url', result.url);
-            localStorage.setItem('active_wallpaper_type', result.type);
-          } catch {
-            // Ignore quota issues
-          }
-        }
+        persistWallpaperLocally(result);
         return result;
       }
     } catch (e) {
@@ -92,16 +118,8 @@ export async function getWallpaper(): Promise<WallpaperData | null> {
     }
   }
 
-  // 2. Fallback to Local Storage
-  if (typeof window !== 'undefined') {
-    const url = localStorage.getItem('active_wallpaper_url');
-    const type = localStorage.getItem('active_wallpaper_type') as 'image' | 'video' | null;
-    if (url) {
-      return { url, type: type || 'image' };
-    }
-  }
-
-  return null;
+  // 2. Fallback to Local Storage / IndexedDB
+  return await getCachedWallpaperAsync();
 }
 
 export async function saveWallpaper(
@@ -180,28 +198,13 @@ export async function saveWallpaper(
       });
     } catch (dbErr: any) {
       console.error("Gagal menyimpan wallpaper ke database Supabase:", dbErr);
-      // Even if DB fails, update localStorage
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('active_wallpaper_url', finalUrl);
-          localStorage.setItem('active_wallpaper_type', fileType);
-        } catch (e) {
-          console.warn("Gagal menyimpan wallpaper ke localStorage:", e);
-        }
-      }
+      persistWallpaperLocally({ url: finalUrl, type: fileType });
       throw new Error(`Gagal menyimpan konfigurasi wallpaper ke database: ${dbErr?.message || dbErr}`);
     }
   }
 
-  // Always update localStorage as instant cache & fallback
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem('active_wallpaper_url', finalUrl);
-      localStorage.setItem('active_wallpaper_type', fileType);
-    } catch (e) {
-      console.warn("Gagal menyimpan wallpaper ke localStorage (quota exceeded):", e);
-    }
-  }
+  // Always update localStorage + IndexedDB as instant cache & fallback
+  persistWallpaperLocally({ url: finalUrl, type: fileType });
 
   return { url: finalUrl, type: fileType };
 }
@@ -218,6 +221,8 @@ export async function clearWallpaper(): Promise<void> {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('active_wallpaper_url');
     localStorage.removeItem('active_wallpaper_type');
+    await deleteIdbMediaCache('wallpaper');
   }
 }
+
 

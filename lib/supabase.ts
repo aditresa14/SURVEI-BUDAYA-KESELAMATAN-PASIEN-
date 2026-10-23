@@ -207,3 +207,73 @@ export async function deleteAppSetting(
   }
 }
 
+// IndexedDB cache for visual media (wallpaper, logo, header banner) so large Base64 images/videos
+// that exceed localStorage's ~5MB quota still load in ~5ms on page refresh without waiting for network.
+const MEDIA_IDB_NAME = 'ahrq_media_cache_v1';
+const MEDIA_IDB_STORE = 'media';
+
+function openMediaIdb(): Promise<IDBDatabase | null> {
+  if (typeof window === 'undefined' || !('indexedDB' in window)) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    try {
+      const req = window.indexedDB.open(MEDIA_IDB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(MEDIA_IDB_STORE)) {
+          db.createObjectStore(MEDIA_IDB_STORE);
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+export async function readIdbMediaCache<T = any>(key: string): Promise<T | null> {
+  const db = await openMediaIdb();
+  if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(MEDIA_IDB_STORE, 'readonly');
+      const req = tx.objectStore(MEDIA_IDB_STORE).get(key);
+      req.onsuccess = () => resolve((req.result as T) ?? null);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+export async function writeIdbMediaCache<T = any>(key: string, value: T): Promise<void> {
+  const db = await openMediaIdb();
+  if (!db) return;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(MEDIA_IDB_STORE, 'readwrite');
+      tx.objectStore(MEDIA_IDB_STORE).put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    } catch {
+      resolve();
+    }
+  });
+}
+
+export async function deleteIdbMediaCache(key: string): Promise<void> {
+  const db = await openMediaIdb();
+  if (!db) return;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(MEDIA_IDB_STORE, 'readwrite');
+      tx.objectStore(MEDIA_IDB_STORE).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    } catch {
+      resolve();
+    }
+  });
+}
+
+

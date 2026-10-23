@@ -1,7 +1,38 @@
-import { getSupabaseClient, getAppSetting, setAppSetting, deleteAppSetting } from './supabase';
+import { getSupabaseClient, getAppSetting, setAppSetting, deleteAppSetting, readIdbMediaCache, writeIdbMediaCache, deleteIdbMediaCache } from './supabase';
 
 export interface LogoData {
   url: string;
+}
+
+// Synchronous 0ms read from localStorage for instant initial render
+export function getCachedLogoSync(): LogoData | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const url = localStorage.getItem('active_logo_url');
+    if (url) {
+      return { url };
+    }
+  } catch {
+    // Ignore storage read errors
+  }
+  return null;
+}
+
+// Fast (~5ms) local read from localStorage + IndexedDB
+export async function getCachedLogoAsync(): Promise<LogoData | null> {
+  const syncCached = getCachedLogoSync();
+  if (syncCached) return syncCached;
+  return await readIdbMediaCache<LogoData>('logo');
+}
+
+function persistLogoLocally(data: LogoData) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem('active_logo_url', data.url);
+  } catch {
+    // Quota exceeded in localStorage; IndexedDB below will store it reliably
+  }
+  writeIdbMediaCache('logo', data).catch(() => null);
 }
 
 // Convert Base64 string to a Blob
@@ -72,29 +103,17 @@ export async function getLogo(): Promise<LogoData | null> {
     try {
       const val = await getAppSetting<LogoData>(supabase, 'logo');
       if (val && val.url) {
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem('active_logo_url', val.url);
-          } catch {
-            // Ignore quota issues
-          }
-        }
-        return { url: val.url };
+        const result = { url: val.url };
+        persistLogoLocally(result);
+        return result;
       }
     } catch (e) {
       console.warn("Gagal mengambil logo dari database Supabase:", e);
     }
   }
 
-  // 2. Fallback to Local Storage
-  if (typeof window !== 'undefined') {
-    const url = localStorage.getItem('active_logo_url');
-    if (url) {
-      return { url };
-    }
-  }
-
-  return null;
+  // 2. Fallback to Local Storage / IndexedDB
+  return await getCachedLogoAsync();
 }
 
 export async function saveLogo(
@@ -164,26 +183,13 @@ export async function saveLogo(
       });
     } catch (dbErr: any) {
       console.error("Gagal menyimpan logo ke database Supabase:", dbErr);
-      // If saving to database failed, still update local storage so user has the logo
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('active_logo_url', finalUrl);
-        } catch (e) {
-          console.warn("Gagal menyimpan logo ke localStorage:", e);
-        }
-      }
+      persistLogoLocally({ url: finalUrl });
       throw new Error(`Gagal menyimpan konfigurasi logo ke database: ${dbErr?.message || dbErr}`);
     }
   }
 
-  // Always update localStorage as instant cache & fallback
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem('active_logo_url', finalUrl);
-    } catch (e) {
-      console.warn("Gagal menyimpan logo ke localStorage (quota exceeded):", e);
-    }
-  }
+  // Always update localStorage + IndexedDB as instant cache & fallback
+  persistLogoLocally({ url: finalUrl });
 
   return { url: finalUrl };
 }
@@ -199,6 +205,8 @@ export async function clearLogo(): Promise<void> {
   }
   if (typeof window !== 'undefined') {
     localStorage.removeItem('active_logo_url');
+    await deleteIdbMediaCache('logo');
   }
 }
+
 

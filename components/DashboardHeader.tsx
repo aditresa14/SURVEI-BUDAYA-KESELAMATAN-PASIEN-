@@ -242,6 +242,8 @@ export default function DashboardHeader({ role, namaRs, surveys, selectedYear, a
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const titleContainerRef = useRef<HTMLDivElement>(null);
+  const titleTextRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     setImageError(false);
@@ -331,6 +333,59 @@ export default function DashboardHeader({ role, namaRs, surveys, selectedYear, a
 
   const greeting = getGreeting();
   const displayHospital = role === 'admin' ? 'Admin AHRQ' : namaRs;
+
+  // Auto-scale hospital title font size ONLY when text exceeds 1 line at 30px
+  useEffect(() => {
+    const container = titleContainerRef.current;
+    const textEl = titleTextRef.current;
+    if (!container || !textEl) return;
+
+    const MAX_FONT_SIZE = 30;
+    const MIN_FONT_SIZE = 12;
+
+    const fitHospitalTitle = () => {
+      if (!container || !textEl) return;
+      const availableWidth = container.clientWidth;
+      if (availableWidth <= 0) return;
+
+      // Reset to default 30px first to check if it naturally fits on 1 line
+      textEl.style.fontSize = `${MAX_FONT_SIZE}px`;
+      textEl.style.lineHeight = '30px';
+
+      const naturalWidth = textEl.scrollWidth;
+      if (naturalWidth <= availableWidth) {
+        // Fits on 1 line at 30px — preserve original size
+        return;
+      }
+
+      // Scale down proportionally so it stays on 1 single line
+      let nextSize = Math.max(
+        MIN_FONT_SIZE,
+        Math.floor((availableWidth / naturalWidth) * MAX_FONT_SIZE * 2) / 2
+      );
+      textEl.style.fontSize = `${nextSize}px`;
+
+      while (textEl.scrollWidth > availableWidth && nextSize > MIN_FONT_SIZE) {
+        nextSize = Math.max(MIN_FONT_SIZE, Number((nextSize - 0.5).toFixed(1)));
+        textEl.style.fontSize = `${nextSize}px`;
+      }
+    };
+
+    fitHospitalTitle();
+
+    if (typeof document !== 'undefined' && (document as any).fonts?.ready) {
+      (document as any).fonts.ready.then(() => fitHospitalTitle()).catch(() => {});
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      fitHospitalTitle();
+    });
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [displayHospital, headerImage?.url, imageError]);
 
   // Framer Motion variants
   const containerVariants: any = {
@@ -470,12 +525,15 @@ export default function DashboardHeader({ role, namaRs, surveys, selectedYear, a
               </div>
               
               {/* Row 2: Hospital Title with Gradient Accent & Glow */}
-              <motion.h2 
-                variants={namaRsVariants}
-                className="text-[30px] leading-[30px] font-extrabold text-[#1E6F73] tracking-tight break-words whitespace-normal font-sans"
-              >
-                Hai, Sobat <span className="text-[#1E6F73] font-extrabold">{displayHospital}</span>
-              </motion.h2>
+              <div ref={titleContainerRef} className="w-full min-w-0 overflow-hidden">
+                <motion.h2 
+                  ref={titleTextRef}
+                  variants={namaRsVariants}
+                  className="text-[30px] leading-[30px] font-extrabold text-[#1E6F73] tracking-tight whitespace-nowrap inline-block font-sans"
+                >
+                  Hai, Sobat <span className="text-[#1E6F73] font-extrabold">{displayHospital}</span>
+                </motion.h2>
+              </div>
             </div>
 
             {/* Row 3: Subtitle & Description */}

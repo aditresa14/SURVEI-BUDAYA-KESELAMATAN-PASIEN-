@@ -379,27 +379,12 @@ export default function LoginScreen({
                 </div>
               </div>
 
-              <motion.button
+              <button
                 type="submit"
-                whileHover={{
-                  scale: 1.025,
-                  scaleX: [1, 1.09, 0.93, 1.04, 0.98, 1],
-                  scaleY: [1, 0.91, 1.07, 0.96, 1.02, 1],
-                  transition: {
-                    duration: 0.65,
-                    ease: [0.34, 1.56, 0.64, 1]
-                  }
-                }}
-                whileTap={{
-                  scale: 0.93,
-                  scaleX: 1.12,
-                  scaleY: 0.88,
-                  transition: { type: "spring", stiffness: 500, damping: 12 }
-                }}
-                className="w-full py-4 bg-gradient-to-r from-[#43B8BD] to-[#2FA7A7] hover:from-[#369C9F] hover:to-[#1E6F73] text-white font-black uppercase tracking-widest rounded-2xl text-xs shadow-md shadow-teal-500/15 hover:shadow-xl hover:shadow-teal-500/30 transition-all transform-gpu cursor-pointer flex items-center justify-center gap-2 group ring-1 ring-white/40 select-none"
+                className="btn-jelly w-full py-4 bg-gradient-to-r from-[#43B8BD] to-[#2FA7A7] hover:from-[#369C9F] hover:to-[#1E6F73] text-white font-black uppercase tracking-widest rounded-2xl text-xs shadow-md shadow-teal-500/15 hover:shadow-xl hover:shadow-teal-500/30 cursor-pointer flex items-center justify-center gap-2 group ring-1 ring-white/40 select-none"
               >
                 <LogIn className="w-4 h-4 transition-transform group-hover:translate-x-1" /> Masuk ke Portal RS
-              </motion.button>
+              </button>
 
               <div className="text-center pt-2">
                 <button
@@ -449,27 +434,12 @@ export default function LoginScreen({
                 </div>
               </div>
 
-              <motion.button
+              <button
                 type="submit"
-                whileHover={{
-                  scale: 1.025,
-                  scaleX: [1, 1.09, 0.93, 1.04, 0.98, 1],
-                  scaleY: [1, 0.91, 1.07, 0.96, 1.02, 1],
-                  transition: {
-                    duration: 0.65,
-                    ease: [0.34, 1.56, 0.64, 1]
-                  }
-                }}
-                whileTap={{
-                  scale: 0.93,
-                  scaleX: 1.12,
-                  scaleY: 0.88,
-                  transition: { type: "spring", stiffness: 500, damping: 12 }
-                }}
-                className="w-full py-4 bg-gradient-to-r from-[#43B8BD] to-[#2FA7A7] hover:from-[#369C9F] hover:to-[#1E6F73] text-white font-black uppercase tracking-widest rounded-2xl text-xs shadow-md shadow-teal-500/15 hover:shadow-xl hover:shadow-teal-500/30 transition-all transform-gpu cursor-pointer flex items-center justify-center gap-2 group ring-1 ring-white/40 select-none"
+                className="btn-jelly w-full py-4 bg-gradient-to-r from-[#43B8BD] to-[#2FA7A7] hover:from-[#369C9F] hover:to-[#1E6F73] text-white font-black uppercase tracking-widest rounded-2xl text-xs shadow-md shadow-teal-500/15 hover:shadow-xl hover:shadow-teal-500/30 cursor-pointer flex items-center justify-center gap-2 group ring-1 ring-white/40 select-none"
               >
                 <LogIn className="w-4 h-4 transition-transform group-hover:translate-x-1" /> Masuk Admin Utama
-              </motion.button>
+              </button>
             </form>
           )}
         </div>

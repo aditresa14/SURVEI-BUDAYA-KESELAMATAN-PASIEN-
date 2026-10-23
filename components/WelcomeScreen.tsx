@@ -151,24 +151,9 @@ export default function WelcomeScreen({ onEnter, activeLogo }: WelcomeScreenProp
             transition={{ duration: 0.6, delay: 0.3 }}
             className="pt-2 flex flex-col sm:flex-row gap-4 items-center justify-start"
           >
-            <motion.button
+            <button
               onClick={onEnter}
-              whileHover={{
-                scale: 1.04,
-                scaleX: [1, 1.12, 0.92, 1.05, 0.98, 1],
-                scaleY: [1, 0.88, 1.08, 0.95, 1.02, 1],
-                transition: {
-                  duration: 0.65,
-                  ease: [0.34, 1.56, 0.64, 1]
-                }
-              }}
-              whileTap={{
-                scale: 0.92,
-                scaleX: 1.14,
-                scaleY: 0.86,
-                transition: { type: "spring", stiffness: 500, damping: 12 }
-              }}
-              className="group px-8 py-4 bg-gradient-to-r from-[#43B8BD] to-[#2FA7A7] hover:from-[#369C9F] hover:to-[#1E6F73] text-white font-extrabold rounded-2xl inline-flex items-center gap-3.5 shadow-md shadow-teal-500/20 hover:shadow-xl hover:shadow-teal-500/35 transition-all transform-gpu cursor-pointer text-sm tracking-wide select-none"
+              className="btn-jelly group px-8 py-4 bg-gradient-to-r from-[#43B8BD] to-[#2FA7A7] hover:from-[#369C9F] hover:to-[#1E6F73] text-white font-extrabold rounded-2xl inline-flex items-center gap-3.5 shadow-md shadow-teal-500/20 hover:shadow-xl hover:shadow-teal-500/35 cursor-pointer text-sm tracking-wide select-none"
             >
               MULAI SURVEI
               <motion.div
@@ -178,7 +163,7 @@ export default function WelcomeScreen({ onEnter, activeLogo }: WelcomeScreenProp
               >
                 <ArrowRight className="w-4.5 h-4.5" />
               </motion.div>
-            </motion.button>
+            </button>
           </motion.div>
 
         </div>

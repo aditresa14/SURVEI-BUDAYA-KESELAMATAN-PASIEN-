@@ -2465,7 +2465,8 @@ export async function getPengesahanConfig(hospitalIdOrUsername?: string, current
       const { data: accData } = await supabase
         .from('hospital_accounts')
         .select('id, username, pengesahan_config')
-        .or(`id.eq.${hospitalIdOrUsername},username.ilike.${hospitalIdOrUsername}`);
+        .or(`id.eq."${hospitalIdOrUsername}",username.ilike."${hospitalIdOrUsername}"`)
+        .limit(1);
 
       if (accData && accData.length > 0 && accData[0].pengesahan_config) {
         foundConfig = typeof accData[0].pengesahan_config === 'string'
@@ -2476,12 +2477,14 @@ export async function getPengesahanConfig(hospitalIdOrUsername?: string, current
 
       // 2. Try ahrq_surveys table fallback (id = PENGESAHAN_<identifier>)
       if (!foundConfig) {
-        const { data: surveyRow } = await supabase
+        const { data: surveyRows } = await supabase
           .from('ahrq_surveys')
           .select('dimensi_scores')
           .eq('id', `PENGESAHAN_${identifier}`)
-          .maybeSingle();
+          .order('created_at', { ascending: false, nullsFirst: false })
+          .limit(1);
 
+        const surveyRow = surveyRows && surveyRows.length > 0 ? surveyRows[0] : null;
         if (surveyRow && surveyRow.dimensi_scores && (surveyRow.dimensi_scores as any).pengesahan) {
           foundConfig = (surveyRow.dimensi_scores as any).pengesahan;
           isSpecific = true;
@@ -2492,18 +2495,13 @@ export async function getPengesahanConfig(hospitalIdOrUsername?: string, current
     }
   }
 
-  // 3. Try LocalStorage fallback
-  if (!foundConfig && typeof window !== 'undefined') {
+  // 3. Try LocalStorage fallback strictly for this specific hospital identifier (never cross-contaminate via global key)
+  if (!foundConfig && typeof window !== 'undefined' && identifier !== 'default') {
     try {
       const stored = localStorage.getItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${identifier}`);
       if (stored) {
         foundConfig = JSON.parse(stored);
         isSpecific = true;
-      } else {
-        const globalStored = localStorage.getItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}global`);
-        if (globalStored) {
-          foundConfig = JSON.parse(globalStored);
-        }
       }
     } catch (e) {
       console.warn("Failed reading pengesahan config from localStorage:", e);
@@ -2537,33 +2535,39 @@ export async function savePengesahanConfig(hospitalIdOrUsername: string, config:
 
   if (supabase && identifier) {
     try {
+      const nowIso = new Date().toISOString();
       // 1. Update hospital_accounts
       await supabase
         .from('hospital_accounts')
         .update({
           pengesahan_config: config,
-          updated_at: new Date().toISOString()
+          updated_at: nowIso
         })
-        .or(`id.eq.${hospitalIdOrUsername},username.ilike.${hospitalIdOrUsername}`);
+        .or(`id.eq."${hospitalIdOrUsername}",username.ilike."${hospitalIdOrUsername}"`);
 
-      // 2. Upsert to ahrq_surveys fallback table
-      await supabase.from('ahrq_surveys').upsert({
+      // 2. Delete existing and insert to ahrq_surveys fallback table (prevents duplicate rows when no PK constraint exists)
+      await supabase
+        .from('ahrq_surveys')
+        .delete()
+        .eq('id', `PENGESAHAN_${identifier}`);
+
+      await supabase.from('ahrq_surveys').insert([{
         id: `PENGESAHAN_${identifier}`,
         nama_rs: config.namaRs || '_CONFIG_',
         unit_kerja: 'PENGESAHAN_CONFIG',
         jumlah_responden: 0,
-        tanggal_input: new Date().toISOString(),
+        tanggal_input: nowIso.split('T')[0],
+        created_at: nowIso,
         dimensi_scores: { pengesahan: config }
-      });
+      }]);
     } catch (e) {
       console.warn("Error saving pengesahan config to Supabase:", e);
     }
   }
 
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && identifier !== 'default') {
     try {
       localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${identifier}`, JSON.stringify(config));
-      localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}global`, JSON.stringify(config));
     } catch (e) {
       console.warn("Error saving pengesahan config to localStorage:", e);
     }

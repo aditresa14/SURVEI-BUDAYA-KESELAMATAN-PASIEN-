@@ -276,7 +276,7 @@ export default function Dashboard({
   }, [validSurveys, role, selectedRsFilter, accounts, identifier, hospitalId, namaRs]);
 
   const surveysWithConfig = useMemo(() => {
-    // Include the actual surveys PLUS the link config for this specific RS
+    // Include the actual surveys PLUS the link config strictly matching this specific RS
     const baseSurveys = surveys.filter(s => 
       (isSurveyResponse(s) || s.id.startsWith('LINK_CONFIG_')) && 
       s.namaRs !== '_MASTER_CONFIG_' && 
@@ -287,7 +287,7 @@ export default function Dashboard({
         return baseSurveys.filter(s => {
           const surveyUser = ((s.dimensiScores as any)?.username || s.unitKerja || '').toLowerCase();
           const sName = (s.namaRs || '').toLowerCase();
-          return surveyUser === 'admin' || sName === 'administrator pusat' || s.namaRs === '_LINK_CONFIG_';
+          return surveyUser === 'admin' || sName === 'administrator pusat';
         });
       } else if (selectedRsFilter === 'all') {
         return baseSurveys;
@@ -297,12 +297,11 @@ export default function Dashboard({
           a.id === selectedRsFilter
         );
         return baseSurveys.filter(s => 
-          isHospitalMatch(s, targetAcc?.username || selectedRsFilter, targetAcc?.id, targetAcc?.namaRs, targetAcc?.kodeRs) ||
-          s.namaRs === '_LINK_CONFIG_'
+          isHospitalMatch(s, targetAcc?.username || selectedRsFilter, targetAcc?.id, targetAcc?.namaRs, targetAcc?.kodeRs)
         );
       }
     }
-    return baseSurveys.filter(s => isHospitalMatch(s, identifier, hospitalId, namaRs) || s.namaRs === '_LINK_CONFIG_');
+    return baseSurveys.filter(s => isHospitalMatch(s, identifier, hospitalId, namaRs));
   }, [surveys, role, selectedRsFilter, accounts, identifier, hospitalId, namaRs]);
 
 
@@ -980,15 +979,20 @@ export default function Dashboard({
           />
         )}
 
-        {activeTab === 'input' && (
-          <InputDataTab 
-            currentRsName={namaRs} 
-            identifier={identifier}
-            hospitalId={hospitalId}
-            onSaveSurvey={handleSaveSurvey} 
-            surveys={filteredSurveys}
-          />
-        )}
+        {activeTab === 'input' && (() => {
+          const selectedAcc = (role === 'admin' && selectedRsFilter !== 'all' && selectedRsFilter !== 'admin')
+            ? accounts.find(a => a.username?.toLowerCase() === selectedRsFilter.toLowerCase() || a.id === selectedRsFilter)
+            : null;
+          return (
+            <InputDataTab 
+              currentRsName={selectedAcc ? selectedAcc.namaRs : namaRs} 
+              identifier={selectedAcc ? selectedAcc.username : identifier}
+              hospitalId={selectedAcc ? selectedAcc.id : hospitalId}
+              onSaveSurvey={handleSaveSurvey} 
+              surveys={filteredSurveys}
+            />
+          );
+        })()}
 
         {activeTab === 'laporan' && (
           <LaporanTab 

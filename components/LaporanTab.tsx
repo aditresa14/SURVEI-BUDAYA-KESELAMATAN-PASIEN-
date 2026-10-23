@@ -52,7 +52,7 @@ import {
   LabelList
 } from 'recharts';
 import { computeDimensionScores, DIMENSI_INFO, DIMENSI_ITEMS, scoreToPercent } from '../lib/scoring';
-import { getPengesahanConfig, PengesahanConfig, isSurveyResponse } from '../lib/db';
+import { getPengesahanConfig, PengesahanConfig, isSurveyResponse, isHospitalMatch } from '../lib/db';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas-pro';
 
@@ -376,9 +376,11 @@ export default function LaporanTab({
   }, [activeSurveys]);
 
   const linkConfig = useMemo(() => {
-    const configRow = surveys.find(s => s.id.startsWith('LINK_CONFIG_'));
+    const configRow = surveys.find(
+      s => s.id.startsWith('LINK_CONFIG_') && isHospitalMatch(s, identifier, hospitalId, namaRs)
+    );
     return configRow?.dimensiScores || null;
-  }, [surveys]);
+  }, [surveys, identifier, hospitalId, namaRs]);
 
   const totalTarget = useMemo(() => {
     if (linkConfig && linkConfig.maxRespondents) {

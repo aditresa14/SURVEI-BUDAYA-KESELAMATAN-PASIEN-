@@ -108,13 +108,35 @@ export default function PublicSurveyPage() {
           }
         }
 
+        const resolvedIdentifier = surveyRecord.unit_kerja || parsedScores.username || parsedScores.unit_kerja || 'default';
+        const resolvedHospitalId = (surveyRecord as any).hospital_id || parsedScores.hospital_id || resolvedIdentifier;
+        let officialRsName = parsedScores.rsName || parsedScores.hospital_name || (surveyRecord.nama_rs !== '_LINK_CONFIG_' ? surveyRecord.nama_rs : '') || 'Rumah Sakit';
+
+        // Cross-check hospital_accounts to guarantee the most up-to-date official hospital name
+        try {
+          let accQuery = supabase.from('hospital_accounts').select('id, username, nama_rs');
+          if (resolvedHospitalId && resolvedIdentifier && resolvedHospitalId !== resolvedIdentifier) {
+            accQuery = accQuery.or(`id.eq."${resolvedHospitalId}",username.ilike."${resolvedIdentifier}"`);
+          } else if (resolvedIdentifier && resolvedIdentifier !== 'default') {
+            accQuery = accQuery.ilike('username', resolvedIdentifier);
+          } else if (resolvedHospitalId) {
+            accQuery = accQuery.eq('id', resolvedHospitalId);
+          }
+          const { data: accData } = await accQuery.limit(1);
+          if (accData && accData.length > 0 && accData[0].nama_rs) {
+            officialRsName = accData[0].nama_rs;
+          }
+        } catch (accErr) {
+          // Ignore lookup error and fallback to parsedScores.rsName
+        }
+
         setConfig({
-          rsName: parsedScores.rsName || surveyRecord.nama_rs || 'Rumah Sakit',
-          identifier: surveyRecord.unit_kerja || parsedScores.username || parsedScores.unit_kerja || 'default',
-          hospitalId: surveyRecord.hospital_id || parsedScores.hospital_id || surveyRecord.unit_kerja,
-          userId: surveyRecord.user_id || parsedScores.user_id || surveyRecord.unit_kerja,
-          createdBy: surveyRecord.created_by || parsedScores.created_by || surveyRecord.unit_kerja,
-          hospitalName: surveyRecord.hospital_name || parsedScores.hospital_name || parsedScores.rsName || surveyRecord.nama_rs || 'Rumah Sakit'
+          rsName: officialRsName,
+          identifier: resolvedIdentifier,
+          hospitalId: resolvedHospitalId,
+          userId: (surveyRecord as any).user_id || parsedScores.user_id || resolvedIdentifier,
+          createdBy: (surveyRecord as any).created_by || parsedScores.created_by || resolvedIdentifier,
+          hospitalName: officialRsName
         });
 
         // Load logo
@@ -257,6 +279,7 @@ export default function PublicSurveyPage() {
         <InputDataTab 
           currentRsName={config.rsName} 
           identifier={config.identifier}
+          hospitalId={config.hospitalId}
           isPublic={true}
           onSaveSurvey={handleSaveSurvey} 
         />

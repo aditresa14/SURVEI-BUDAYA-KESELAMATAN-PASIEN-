@@ -396,13 +396,31 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
     if (!supabase) return;
     setIsLoadingLink(true);
     try {
+      const normId = (identifier || '').toLowerCase().trim();
+      const normHospId = (hospitalId || '').toLowerCase().trim();
+      const normRsName = (currentRsName || '').toLowerCase().trim();
+
+      const isRowMatchingCurrentHospital = (r: any) => {
+        if (!r) return false;
+        const sc = parseDimensiScores(r.dimensi_scores);
+        const rUnit = (r.unit_kerja || '').toLowerCase().trim();
+        const scUser = (sc.username || sc.user_id || sc.created_by || '').toLowerCase().trim();
+        const scHospId = (sc.hospital_id || '').toLowerCase().trim();
+        const scRsName = (sc.rsName || sc.hospital_name || r.nama_rs || '').toLowerCase().trim();
+
+        if (normId && (rUnit === normId || scUser === normId || scHospId === normId)) return true;
+        if (normHospId && (rUnit === normHospId || scHospId === normHospId || scUser === normHospId)) return true;
+        if (normRsName && normRsName !== '_link_config_' && (scRsName === normRsName)) return true;
+        return false;
+      };
+
       let query = supabase
         .from('ahrq_surveys')
         .select('id, unit_kerja, nama_rs, tanggal_input, jumlah_responden, created_at, dimensi_scores')
         .like('id', 'LINK_CONFIG_%');
 
       if (hospitalId && identifier && hospitalId !== identifier) {
-        query = query.or(`unit_kerja.eq.${identifier},unit_kerja.eq.${hospitalId}`);
+        query = query.or(`unit_kerja.eq."${identifier}",unit_kerja.eq."${hospitalId}"`);
       } else if (identifier) {
         query = query.eq('unit_kerja', identifier);
       } else if (hospitalId) {
@@ -410,29 +428,24 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
       }
       
       const { data, error } = await query
-        .order('created_at', { ascending: false })
-        .limit(1);
+        .order('created_at', { ascending: false, nullsFirst: false })
+        .limit(5);
       
-      let targetRow = (!error && data && data.length > 0) ? data[0] : null;
+      let targetRow = (!error && data && data.length > 0)
+        ? (data.find(isRowMatchingCurrentHospital) || null)
+        : null;
 
-      // Fallback search if not matched by unit_kerja directly
+      // Fallback search across LINK_CONFIG_ rows ONLY for this specific hospital (NEVER fallback to allConfigs[0]!)
       if (!targetRow) {
         const { data: allConfigs } = await supabase
           .from('ahrq_surveys')
           .select('id, unit_kerja, nama_rs, tanggal_input, jumlah_responden, created_at, dimensi_scores')
           .like('id', 'LINK_CONFIG_%')
-          .order('created_at', { ascending: false })
-          .limit(30);
+          .order('created_at', { ascending: false, nullsFirst: false })
+          .limit(100);
 
         if (allConfigs && allConfigs.length > 0) {
-          targetRow = allConfigs.find((r: any) => {
-            const sc = parseDimensiScores(r.dimensi_scores);
-            return (
-              (identifier && (r.unit_kerja === identifier || sc.username === identifier)) ||
-              (hospitalId && (r.unit_kerja === hospitalId || sc.hospital_id === hospitalId)) ||
-              (currentRsName && (sc.rsName === currentRsName || r.nama_rs === currentRsName))
-            );
-          }) || allConfigs[0];
+          targetRow = allConfigs.find(isRowMatchingCurrentHospital) || null;
         }
       }
 
@@ -441,6 +454,25 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
         const actualCount = surveys.reduce((acc, curr) => acc + (curr.jumlahResponden || 1), 0);
         const countToUse = Math.max(scores.respondentCount || 0, actualCount);
         const resolvedToken = scores.token || targetRow.id.replace('LINK_CONFIG_', '') || targetRow.tanggal_input;
+
+        // Auto-heal rsName in database if currentRsName is known and differs from stored rsName
+        if (currentRsName && currentRsName.trim() && (scores.rsName !== currentRsName || scores.hospital_name !== currentRsName)) {
+          const healedScores = {
+            ...scores,
+            token: resolvedToken,
+            rsName: currentRsName,
+            hospital_name: currentRsName,
+            hospital_id: hospitalId || scores.hospital_id || identifier,
+            username: identifier || scores.username,
+            user_id: identifier || scores.user_id,
+            created_by: identifier || scores.created_by
+          };
+          supabase
+            .from('ahrq_surveys')
+            .update({ dimensi_scores: healedScores })
+            .eq('id', targetRow.id)
+            .then(() => invalidateSurveysCache());
+        }
 
         setSurveyLinkConfig({
           token: resolvedToken,
@@ -453,6 +485,9 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
           preventDuplicate: scores.preventDuplicate !== false,
           customDomain: scores.customDomain || ''
         });
+      } else if (identifier || hospitalId) {
+        // Automatically generate a dedicated link config for this hospital if none exists yet
+        await generateSurveyLink(true);
       } else {
         setSurveyLinkConfig(null);
       }
@@ -463,7 +498,7 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
     }
   };
 
-  const generateSurveyLink = async () => {
+  const generateSurveyLink = async (silent: boolean = false) => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
     setIsLoadingLink(true);
@@ -475,7 +510,7 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
         .from('ahrq_surveys')
         .select('id')
         .eq('nama_rs', '_LINK_CONFIG_')
-        .or(`unit_kerja.eq.${identifier},unit_kerja.eq.${hospitalId || identifier}`);
+        .or(`unit_kerja.eq."${identifier}",unit_kerja.eq."${hospitalId || identifier}"`);
 
       if (existing && existing.length > 0) {
         const idsToDelete = existing.map((x: any) => x.id);
@@ -491,7 +526,8 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
         .delete()
         .eq('id', `LINK_CONFIG_${token}`);
 
-      const todayDate = new Date().toISOString().split('T')[0]; // valid date YYYY-MM-DD
+      const nowIso = new Date().toISOString();
+      const todayDate = nowIso.split('T')[0]; // valid date YYYY-MM-DD
       const actualCount = surveys.reduce((acc, curr) => acc + (curr.jumlahResponden || 1), 0);
       const currentCount = Math.max(surveyLinkConfig?.respondentCount || 0, actualCount);
 
@@ -501,16 +537,18 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
         unit_kerja: identifier || hospitalId || 'default',
         tanggal_input: todayDate,
         jumlah_responden: 1, // active
+        created_at: nowIso,
         dimensi_scores: {
           token: token,
           rsName: currentRsName,
-          createdAt: new Date().toISOString(),
+          createdAt: nowIso,
           startDate: '',
           respondentCount: currentCount,
           expiryDate: '',
           maxRespondents: '',
           preventDuplicate: true,
           customDomain: '',
+          username: identifier,
           hospital_id: hospitalId || identifier,
           user_id: identifier,
           created_by: identifier,
@@ -524,7 +562,9 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
 
       if (genError) {
         console.error("Gagal generate config link:", genError);
-        showNotification(`Gagal membuat tautan baru: ${genError.message || 'Kesalahan database'}`, "error");
+        if (!silent) {
+          showNotification(`Gagal membuat tautan baru: ${genError.message || 'Kesalahan database'}`, "error");
+        }
       } else {
         setSurveyLinkConfig({
           token: token,
@@ -538,11 +578,15 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
           customDomain: ''
         });
         invalidateSurveysCache();
-        showNotification("Tautan survei baru berhasil dibuat!", "success");
+        if (!silent) {
+          showNotification("Tautan survei baru berhasil dibuat!", "success");
+        }
       }
     } catch (e) {
       console.error('Error generating link', e);
-      showNotification("Terjadi kesalahan saat membuat tautan baru", "error");
+      if (!silent) {
+        showNotification("Terjadi kesalahan saat membuat tautan baru", "error");
+      }
     } finally {
       setIsLoadingLink(false);
     }
@@ -555,7 +599,8 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
     setIsLoadingLink(true);
     try {
       const mergedConfig = { ...surveyLinkConfig, ...fieldsToUpdate };
-      const todayDate = new Date().toISOString().split('T')[0];
+      const nowIso = new Date().toISOString();
+      const todayDate = nowIso.split('T')[0];
       const targetToken = mergedConfig.token;
       
       if (!targetToken) {
@@ -569,16 +614,18 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
         unit_kerja: identifier || hospitalId || 'default',
         tanggal_input: todayDate,
         jumlah_responden: mergedConfig.isActive ? 1 : 0,
+        created_at: nowIso,
         dimensi_scores: {
           token: targetToken,
           rsName: currentRsName,
-          createdAt: mergedConfig.createdAt,
+          createdAt: mergedConfig.createdAt || nowIso,
           startDate: mergedConfig.startDate || '',
           respondentCount: mergedConfig.respondentCount || 0,
           expiryDate: mergedConfig.expiryDate || '',
           maxRespondents: mergedConfig.maxRespondents || '',
           preventDuplicate: mergedConfig.preventDuplicate !== false,
           customDomain: mergedConfig.customDomain || '',
+          username: identifier,
           hospital_id: hospitalId || identifier,
           user_id: identifier,
           created_by: identifier,
@@ -625,7 +672,7 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
       loadSurveyLink();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showLinkModal]);
+  }, [showLinkModal, identifier, hospitalId, currentRsName]);
 
   const [posisiStaf, setPosisiStaf] = useState('');
   const [customPosisiStaf, setCustomPosisiStaf] = useState('');
@@ -730,7 +777,7 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
     { id: 6, code: 'F6', text: 'Selama pergantian shift, ada waktu yang memadai untuk bertukar semua informasi penting tentang perawatan pasien', dim: 'd10' }
   ];
 
-  const activeRsName = currentRsName && currentRsName.trim() ? currentRsName : 'RSUD Al-Mulk';
+  const activeRsName = currentRsName && currentRsName.trim() ? currentRsName : 'Rumah Sakit';
 
   const SECTIONS = [
     { id: 0, label: 'Identitas', key: 'identitas' },
@@ -2927,9 +2974,12 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
             className="bg-white border border-slate-200 p-6 rounded-2xl max-w-md w-full shadow-2xl space-y-5 my-8"
           >
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <Share2 className="w-5 h-5 text-emerald-600" /> Bagikan Link Survei
-              </h2>
+              <div>
+                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <Share2 className="w-5 h-5 text-emerald-600" /> Bagikan Link Survei
+                </h2>
+                <p className="text-xs font-semibold text-emerald-600 mt-0.5">{activeRsName}</p>
+              </div>
               <button onClick={() => setShowLinkModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
@@ -2943,7 +2993,7 @@ export default function InputDataTab({ currentRsName, identifier, hospitalId, is
               <div className="text-center space-y-4">
                 <p className="text-sm text-slate-600">Belum ada link survei publik yang dibuat untuk rumah sakit ini.</p>
                 <button
-                  onClick={generateSurveyLink}
+                  onClick={() => generateSurveyLink(false)}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all w-full cursor-pointer"
                 >
                   Buat Link Survei Baru

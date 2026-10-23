@@ -763,16 +763,16 @@ export default function LaporanTab({
         : block.categoryLabel;
 
       return block.rows.map((rItem, rIdx) => {
+        const cellBg = rIdx % 2 === 0 ? '#f8fafc' : '#ffffff';
         return (
           <tr
             key={`${rItem.categoryKey}-${blockIdx}-${rIdx}`}
-            className={rIdx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white'}
           >
             {rIdx === 0 && (
               <td
                 rowSpan={block.rows.length}
                 className="py-2 px-2.5 font-bold text-slate-900 border-r border-b border-slate-200 align-top w-[22%] break-words text-[9px] text-left bg-white"
-                style={{ verticalAlign: 'top', borderRight: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}
+                style={{ verticalAlign: 'top', backgroundColor: '#ffffff', borderRight: '1px solid #cbd5e1', borderBottom: '1px solid #cbd5e1' }}
               >
                 <div className="font-bold text-slate-900 leading-tight">
                   {categoryDisplayName}
@@ -781,19 +781,19 @@ export default function LaporanTab({
             )}
             <td 
               className="py-1.5 px-2.5 border-r border-b border-slate-200 text-slate-700 w-[48%] break-words text-[9px] text-left"
-              style={{ borderRight: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}
+              style={{ backgroundColor: cellBg, borderRight: '1px solid #cbd5e1', borderBottom: '1px solid #cbd5e1' }}
             >
               {rItem.name}
             </td>
             <td 
               className="py-1.5 px-2 border-r border-b border-slate-200 text-center font-bold text-slate-900 w-[15%] text-[9px]"
-              style={{ borderRight: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}
+              style={{ backgroundColor: cellBg, borderRight: '1px solid #cbd5e1', borderBottom: '1px solid #cbd5e1' }}
             >
               {rItem.value}
             </td>
             <td 
               className="py-1.5 px-2 border-b border-slate-200 text-center font-bold text-teal-700 w-[15%] text-[9px]"
-              style={{ borderBottom: '1px solid #e2e8f0' }}
+              style={{ backgroundColor: cellBg, borderBottom: '1px solid #cbd5e1' }}
             >
               {rItem.pctStr}
             </td>
@@ -1701,6 +1701,11 @@ export default function LaporanTab({
               }
               .word-page {
                 box-shadow: none !important;
+                border: none !important;
+              }
+              .word-page tr {
+                background-color: transparent !important;
+                background: transparent !important;
                 border: none !important;
               }
             `;
@@ -2846,8 +2851,8 @@ export default function LaporanTab({
 
                         {/* Tabel Demografi Responden */}
                         {pageItem.rows.length > 0 && (
-                          <div className="w-full border border-slate-200 rounded-xl text-[9px] overflow-hidden bg-white shadow-2xs" style={{ border: '1px solid #e2e8f0' }}>
-                            <table className="w-full table-fixed text-left border-collapse" style={{ borderCollapse: 'collapse', width: '100%' }}>
+                          <div className="w-full border border-slate-300 rounded-xl text-[9px] overflow-hidden bg-white shadow-2xs" style={{ border: '1px solid #cbd5e1' }}>
+                            <table className="w-full table-fixed text-left border-separate border-spacing-0" style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%' }}>
                               <colgroup>
                                 <col style={{ width: '22%' }} />
                                 <col style={{ width: '48%' }} />
@@ -2855,11 +2860,11 @@ export default function LaporanTab({
                                 <col style={{ width: '15%' }} />
                               </colgroup>
                               <thead>
-                                <tr className="bg-teal-500 text-white font-extrabold uppercase tracking-wider text-[8.5px]">
-                                  <th className="py-2 px-2.5 border-r border-white/20 text-left w-[22%] break-words whitespace-normal" style={{ borderRight: '1px solid rgba(255,255,255,0.3)', borderBottom: '1px solid #0f766e' }}>Karakteristik</th>
-                                  <th className="py-2 px-2.5 border-r border-white/20 text-center w-[48%] break-words whitespace-normal" style={{ borderRight: '1px solid rgba(255,255,255,0.3)', borderBottom: '1px solid #0f766e' }}>Kategori / Detail</th>
-                                  <th className="py-2 px-2 border-r border-white/20 text-center w-[15%] break-words whitespace-normal" style={{ borderRight: '1px solid rgba(255,255,255,0.3)', borderBottom: '1px solid #0f766e' }}>Jumlah (n)</th>
-                                  <th className="py-2 px-2 text-center w-[15%] break-words whitespace-normal" style={{ borderBottom: '1px solid #0f766e' }}>Persentase (%)</th>
+                                <tr className="text-white font-extrabold uppercase tracking-wider text-[8.5px]">
+                                  <th className="py-2 px-2.5 bg-teal-500 border-r border-white/20 text-left w-[22%] break-words whitespace-normal" style={{ backgroundColor: '#14b8a6', borderRight: '1px solid rgba(255,255,255,0.35)', borderBottom: '1px solid #0f766e' }}>Karakteristik</th>
+                                  <th className="py-2 px-2.5 bg-teal-500 border-r border-white/20 text-center w-[48%] break-words whitespace-normal" style={{ backgroundColor: '#14b8a6', borderRight: '1px solid rgba(255,255,255,0.35)', borderBottom: '1px solid #0f766e' }}>Kategori / Detail</th>
+                                  <th className="py-2 px-2 bg-teal-500 border-r border-white/20 text-center w-[15%] break-words whitespace-normal" style={{ backgroundColor: '#14b8a6', borderRight: '1px solid rgba(255,255,255,0.35)', borderBottom: '1px solid #0f766e' }}>Jumlah (n)</th>
+                                  <th className="py-2 px-2 bg-teal-500 text-center w-[15%] break-words whitespace-normal" style={{ backgroundColor: '#14b8a6', borderBottom: '1px solid #0f766e' }}>Persentase (%)</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -2964,37 +2969,38 @@ export default function LaporanTab({
                     </div>
 
                     <div className="w-full text-[9.5px]">
-                      <table className="w-full table-fixed border-collapse text-[9.5px]">
+                      <table className="w-full table-fixed border-separate border-spacing-0 text-[9.5px]" style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%' }}>
                         <colgroup>
                           <col style={{ width: '6%' }} />
                           <col style={{ width: '44%' }} />
                           <col style={{ width: '50%' }} />
                         </colgroup>
                         <thead>
-                          <tr className="border-b border-slate-100 font-bold uppercase tracking-wider text-slate-400 text-[8.5px]">
-                            <th className="pb-2 text-left pl-1 font-bold break-words whitespace-normal" style={{ width: '6%' }}>NO.</th>
-                            <th className="pb-2 text-left font-bold break-words whitespace-normal" style={{ width: '44%' }}>KOMPONEN BUDAYA KESELAMATAN PASIEN</th>
-                            <th className="pb-2 text-center font-bold break-words whitespace-normal" style={{ width: '50%' }}>PERSENTASE RESPONS POSITIF</th>
+                          <tr className="font-bold uppercase tracking-wider text-slate-400 text-[8.5px]">
+                            <th className="pb-2 text-left pl-1 font-bold break-words whitespace-normal" style={{ width: '6%', borderBottom: '1px solid #f1f5f9' }}>NO.</th>
+                            <th className="pb-2 text-left font-bold break-words whitespace-normal" style={{ width: '44%', borderBottom: '1px solid #f1f5f9' }}>KOMPONEN BUDAYA KESELAMATAN PASIEN</th>
+                            <th className="pb-2 text-center font-bold break-words whitespace-normal" style={{ width: '50%', borderBottom: '1px solid #f1f5f9' }}>PERSENTASE RESPONS POSITIF</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50 font-medium">
-                          {dimensionScores.map((row, i) => {
+                        <tbody className="font-medium">
+                          {dimensionScores.map((row, i, arr) => {
                             const getBarColor = (val: number) => {
                               if (val >= 85) return 'bg-blue-500';
                               if (val >= 70) return 'bg-emerald-500';
                               if (val >= 50) return 'bg-yellow-500';
                               return 'bg-red-500';
                             };
+                            const isLastRow = i === arr.length - 1;
 
                             return (
                               <tr key={row.id}>
-                                <td className="py-1.5 font-bold text-slate-400 text-left text-[10px] pl-1 align-middle" style={{ width: '6%' }}>
+                                <td className="py-1.5 font-bold text-slate-400 text-left text-[10px] pl-1 align-middle" style={{ width: '6%', borderBottom: isLastRow ? 'none' : '1px solid #f8fafc' }}>
                                   {i + 1}.
                                 </td>
-                                <td className="py-1.5 font-bold text-slate-700 text-[9.5px] leading-snug whitespace-normal break-words pr-2 align-middle" style={{ width: '44%' }}>
+                                <td className="py-1.5 font-bold text-slate-700 text-[9.5px] leading-snug whitespace-normal break-words pr-2 align-middle" style={{ width: '44%', borderBottom: isLastRow ? 'none' : '1px solid #f8fafc' }}>
                                   {row.nama}
                                 </td>
-                                <td className="py-1.5 align-middle" style={{ width: '50%' }}>
+                                <td className="py-1.5 align-middle" style={{ width: '50%', borderBottom: isLastRow ? 'none' : '1px solid #f8fafc' }}>
                                   <div className="flex items-center gap-2">
                                     <div className="flex-1 bg-slate-100 rounded-lg h-5 relative overflow-hidden flex items-center border border-slate-200/80 shadow-xs">
                                       <div 
@@ -4108,8 +4114,8 @@ export default function LaporanTab({
                             <span className="w-1.5 h-3 bg-indigo-600 rounded-sm"></span>
                             A. Perbandingan Dimensi Berdasarkan Posisi Staf (Profesi {pIdx > 0 ? `Lanjutan ${pIdx + 1}` : ''})
                           </h5>
-                          <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                            <table className="w-full table-fixed text-left border-collapse text-[7.5px]">
+                          <div className="overflow-hidden border border-slate-300 rounded-xl bg-white" style={{ border: '1px solid #cbd5e1' }}>
+                            <table className="w-full table-fixed text-left border-separate border-spacing-0 text-[7.5px]" style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%' }}>
                               <colgroup>
                                 <col style={{ width: '5%' }} />
                                 <col style={{ width: '35%' }} />
@@ -4118,28 +4124,29 @@ export default function LaporanTab({
                                 ))}
                               </colgroup>
                               <thead>
-                                <tr className="bg-indigo-900 text-white font-extrabold text-[7.5px] uppercase border-b border-indigo-950">
-                                  <th className="p-1 border-r border-indigo-800 text-center break-words whitespace-normal" style={{ width: '5%' }}>No</th>
-                                  <th className="p-1 border-r border-indigo-800 text-center break-words whitespace-normal" style={{ width: '35%', textAlign: 'center' }}>Dimensi Budaya Keselamatan</th>
-                                  {posChunk.map(pos => (
-                                    <th key={pos.name} className="p-1 text-center border-r border-indigo-800" style={{ width: `${60 / posChunk.length}%` }}>
+                                <tr className="text-white font-extrabold text-[7.5px] uppercase">
+                                  <th className="p-1 bg-indigo-900 border-r border-b border-indigo-800 text-center break-words whitespace-normal" style={{ width: '5%', backgroundColor: '#312e81', borderRight: '1px solid #3730a3', borderBottom: '1px solid #1e1b4b' }}>No</th>
+                                  <th className="p-1 bg-indigo-900 border-r border-b border-indigo-800 text-center break-words whitespace-normal" style={{ width: '35%', textAlign: 'center', backgroundColor: '#312e81', borderRight: '1px solid #3730a3', borderBottom: '1px solid #1e1b4b' }}>Dimensi Budaya Keselamatan</th>
+                                  {posChunk.map((pos, colIdx) => (
+                                    <th key={pos.name} className="p-1 bg-indigo-900 text-center border-b border-indigo-800" style={{ width: `${60 / posChunk.length}%`, backgroundColor: '#312e81', borderRight: colIdx < posChunk.length - 1 ? '1px solid #3730a3' : 'none', borderBottom: '1px solid #1e1b4b' }}>
                                       {pos.name} <span className="font-mono font-normal block text-[6.5px] text-indigo-200">(N={pos.value})</span>
                                     </th>
                                   ))}
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-slate-100 font-medium text-slate-600 bg-white">
-                                {Object.keys(DIMENSI_INFO).map((dimId, idx) => {
+                              <tbody className="font-medium text-slate-600 bg-white">
+                                {Object.keys(DIMENSI_INFO).map((dimId, idx, arr) => {
                                   const info = DIMENSI_INFO[dimId];
                                   const scoreObj = positionDimensionScores.find(s => s.id === dimId);
+                                  const isLastRow = idx === arr.length - 1;
                                   return (
-                                    <tr key={dimId} className="hover:bg-slate-50/40">
-                                      <td className="p-1 border-r border-slate-100 text-center font-bold text-indigo-700" style={{ width: '5%' }}>{idx + 1}</td>
-                                      <td className="p-1 border-r border-slate-100 font-semibold text-slate-800 break-words text-[8.5px]" style={{ width: '35%' }}>{info.nama}</td>
-                                      {posChunk.map(pos => {
+                                    <tr key={dimId}>
+                                      <td className="p-1 bg-white text-center font-bold text-indigo-700" style={{ width: '5%', backgroundColor: '#ffffff', borderRight: '1px solid #cbd5e1', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>{idx + 1}</td>
+                                      <td className="p-1 bg-white font-semibold text-slate-800 break-words text-[8.5px]" style={{ width: '35%', backgroundColor: '#ffffff', borderRight: '1px solid #cbd5e1', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>{info.nama}</td>
+                                      {posChunk.map((pos, colIdx) => {
                                         const val = scoreObj ? scoreObj[pos.name] : null;
                                         return (
-                                          <td key={pos.name} className="p-1 text-center border-r border-slate-100 font-extrabold text-teal-800 bg-slate-50/20" style={{ width: `${60 / posChunk.length}%` }}>
+                                          <td key={pos.name} className="p-1 text-center font-extrabold text-teal-800" style={{ width: `${60 / posChunk.length}%`, backgroundColor: '#f8fafc', borderRight: colIdx < posChunk.length - 1 ? '1px solid #cbd5e1' : 'none', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>
                                             {val !== undefined && val !== null ? `${val.toFixed(1)}%` : '-'}
                                           </td>
                                         );
@@ -4196,8 +4203,8 @@ export default function LaporanTab({
                             <span className="w-1.5 h-3 bg-teal-600 rounded-sm"></span>
                             B. Perbandingan Dimensi Berdasarkan Unit Kerja {uIdx > 0 ? `(Lanjutan ${uIdx + 1})` : ''}
                           </h5>
-                          <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                            <table className="w-full table-fixed text-left border-collapse text-[7.5px]">
+                          <div className="overflow-hidden border border-slate-300 rounded-xl bg-white" style={{ border: '1px solid #cbd5e1' }}>
+                            <table className="w-full table-fixed text-left border-separate border-spacing-0 text-[7.5px]" style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%' }}>
                               <colgroup>
                                 <col style={{ width: '5%' }} />
                                 <col style={{ width: '35%' }} />
@@ -4206,28 +4213,29 @@ export default function LaporanTab({
                                 ))}
                               </colgroup>
                               <thead>
-                                <tr className="bg-teal-800 text-white font-extrabold text-[7.5px] uppercase border-b border-teal-900">
-                                  <th className="p-1 border-r border-teal-700 text-center break-words whitespace-normal" style={{ width: '5%' }}>No</th>
-                                  <th className="p-1 border-r border-teal-700 text-center break-words whitespace-normal" style={{ width: '35%', textAlign: 'center' }}>Dimensi Budaya Keselamatan</th>
-                                  {unitChunk.map(u => (
-                                    <th key={u.name} className="p-1 text-center border-r border-teal-700" style={{ width: `${60 / unitChunk.length}%` }}>
+                                <tr className="text-white font-extrabold text-[7.5px] uppercase">
+                                  <th className="p-1 bg-teal-800 border-r border-b border-teal-700 text-center break-words whitespace-normal" style={{ width: '5%', backgroundColor: '#115e59', borderRight: '1px solid #0f766e', borderBottom: '1px solid #134e4a' }}>No</th>
+                                  <th className="p-1 bg-teal-800 border-r border-b border-teal-700 text-center break-words whitespace-normal" style={{ width: '35%', textAlign: 'center', backgroundColor: '#115e59', borderRight: '1px solid #0f766e', borderBottom: '1px solid #134e4a' }}>Dimensi Budaya Keselamatan</th>
+                                  {unitChunk.map((u, colIdx) => (
+                                    <th key={u.name} className="p-1 bg-teal-800 text-center border-b border-teal-700" style={{ width: `${60 / unitChunk.length}%`, backgroundColor: '#115e59', borderRight: colIdx < unitChunk.length - 1 ? '1px solid #0f766e' : 'none', borderBottom: '1px solid #134e4a' }}>
                                       {u.name} <span className="font-mono font-normal block text-[6.5px] text-teal-200">(N={u.value})</span>
                                     </th>
                                   ))}
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-slate-100 font-medium text-slate-600 bg-white">
-                                {Object.keys(DIMENSI_INFO).map((dimId, idx) => {
+                              <tbody className="font-medium text-slate-600 bg-white">
+                                {Object.keys(DIMENSI_INFO).map((dimId, idx, arr) => {
                                   const info = DIMENSI_INFO[dimId];
                                   const scoreObj = unitDimensionScores.find(s => s.id === dimId);
+                                  const isLastRow = idx === arr.length - 1;
                                   return (
-                                    <tr key={dimId} className="hover:bg-slate-50/40">
-                                      <td className="p-1 border-r border-slate-100 text-center font-bold text-teal-700" style={{ width: '5%' }}>{idx + 1}</td>
-                                      <td className="p-1 border-r border-slate-100 font-semibold text-slate-800 break-words text-[8.5px]" style={{ width: '35%' }}>{info.nama}</td>
-                                      {unitChunk.map(u => {
+                                    <tr key={dimId}>
+                                      <td className="p-1 bg-white text-center font-bold text-teal-700" style={{ width: '5%', backgroundColor: '#ffffff', borderRight: '1px solid #cbd5e1', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>{idx + 1}</td>
+                                      <td className="p-1 bg-white font-semibold text-slate-800 break-words text-[8.5px]" style={{ width: '35%', backgroundColor: '#ffffff', borderRight: '1px solid #cbd5e1', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>{info.nama}</td>
+                                      {unitChunk.map((u, colIdx) => {
                                         const val = scoreObj ? scoreObj[u.name] : null;
                                         return (
-                                          <td key={u.name} className="p-1 text-center border-r border-slate-100 font-extrabold text-teal-800 bg-slate-50/20" style={{ width: `${60 / unitChunk.length}%` }}>
+                                          <td key={u.name} className="p-1 text-center font-extrabold text-teal-800" style={{ width: `${60 / unitChunk.length}%`, backgroundColor: '#f8fafc', borderRight: colIdx < unitChunk.length - 1 ? '1px solid #cbd5e1' : 'none', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>
                                             {val !== undefined && val !== null ? `${val.toFixed(1)}%` : '-'}
                                           </td>
                                         );
@@ -4270,8 +4278,8 @@ export default function LaporanTab({
                         <span className="w-1.5 h-3 bg-amber-600 rounded-sm"></span>
                         C. Perbandingan Dimensi Berdasarkan Masa Kerja (Lama Kerja) & Jam Kerja per Minggu
                       </h5>
-                    <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                      <table className="w-full table-fixed text-left border-collapse text-[7.5px]">
+                    <div className="overflow-hidden border border-slate-300 rounded-xl bg-white" style={{ border: '1px solid #cbd5e1' }}>
+                      <table className="w-full table-fixed text-left border-separate border-spacing-0 text-[7.5px]" style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%' }}>
                         <colgroup>
                           <col style={{ width: '5%' }} />
                           <col style={{ width: '35%' }} />
@@ -4283,50 +4291,53 @@ export default function LaporanTab({
                           ))}
                         </colgroup>
                         <thead>
-                          <tr className="bg-slate-800 text-white font-extrabold text-[7.5px] uppercase border-b border-slate-700">
-                            <th rowSpan={2} className="p-1 border-r border-slate-700 text-center align-middle break-words whitespace-normal" style={{ width: '5%', textAlign: 'center' }}>No</th>
-                            <th rowSpan={2} className="p-1 border-r border-slate-700 text-center align-middle break-words whitespace-normal" style={{ width: '35%', textAlign: 'center' }}>Dimensi Budaya Keselamatan</th>
-                            <th colSpan={demografiStats.g1Data.slice(0, 4).length || 4} className="p-1 text-center border-r border-slate-700 bg-slate-700 break-words whitespace-normal" style={{ width: '30%', textAlign: 'center' }}>
+                          <tr className="text-white font-extrabold text-[7.5px] uppercase">
+                            <th rowSpan={2} className="p-1 bg-slate-800 text-center align-middle break-words whitespace-normal" style={{ width: '5%', textAlign: 'center', verticalAlign: 'middle', backgroundColor: '#1e293b', borderRight: '1px solid #475569', borderBottom: '1px solid #0f172a' }}>No</th>
+                            <th rowSpan={2} className="p-1 bg-slate-800 text-center align-middle break-words whitespace-normal" style={{ width: '35%', textAlign: 'center', verticalAlign: 'middle', backgroundColor: '#1e293b', borderRight: '1px solid #475569', borderBottom: '1px solid #0f172a' }}>Dimensi Budaya Keselamatan</th>
+                            <th colSpan={demografiStats.g1Data.slice(0, 4).length || 4} className="p-1 text-center bg-slate-700 break-words whitespace-normal" style={{ width: '30%', textAlign: 'center', backgroundColor: '#334155', borderRight: '1px solid #475569', borderBottom: '1px solid #475569' }}>
                               Masa Kerja (Staff Tenure)
                             </th>
-                            <th colSpan={demografiStats.g3Data.slice(0, 4).length || 4} className="p-1 text-center bg-slate-650" style={{ width: '30%', textAlign: 'center' }}>
+                            <th colSpan={demografiStats.g3Data.slice(0, 4).length || 4} className="p-1 text-center bg-slate-700 break-words whitespace-normal" style={{ width: '30%', textAlign: 'center', backgroundColor: '#334155', borderBottom: '1px solid #475569' }}>
                               Jam Kerja per Minggu
                             </th>
                           </tr>
-                          <tr className="bg-slate-750 text-white font-bold text-[7px] uppercase border-b border-slate-800 bg-slate-700">
+                          <tr className="text-white font-bold text-[7px] uppercase">
                             {demografiStats.g1Data.slice(0, 4).map(g1 => (
-                              <th key={g1.name} className="py-0.5 px-0.5 text-center font-medium leading-tight border-r border-slate-600" style={{ width: `${30 / Math.max(1, demografiStats.g1Data.slice(0, 4).length)}%`, textAlign: 'center' }}>
+                              <th key={g1.name} className="py-1 px-0.5 text-center font-medium leading-tight bg-slate-700" style={{ width: `${30 / Math.max(1, demografiStats.g1Data.slice(0, 4).length)}%`, textAlign: 'center', backgroundColor: '#334155', borderRight: '1px solid #475569', borderBottom: '1px solid #0f172a' }}>
                                 {g1.name.replace('hingga', '-').replace('atau lebih', '+')}
                               </th>
                             ))}
-                            {demografiStats.g3Data.slice(0, 4).map(g3 => (
-                              <th key={g3.name} className="py-0.5 px-0.5 text-center font-medium leading-tight border-r border-slate-600 last:border-r-0" style={{ width: `${30 / Math.max(1, demografiStats.g3Data.slice(0, 4).length)}%`, textAlign: 'center' }}>
+                            {demografiStats.g3Data.slice(0, 4).map((g3, g3Idx, g3Arr) => (
+                              <th key={g3.name} className="py-1 px-0.5 text-center font-medium leading-tight bg-slate-700" style={{ width: `${30 / Math.max(1, g3Arr.length)}%`, textAlign: 'center', backgroundColor: '#334155', borderRight: g3Idx < g3Arr.length - 1 ? '1px solid #475569' : 'none', borderBottom: '1px solid #0f172a' }}>
                                 {g3.name.replace('hingga', '-').replace('atau lebih', '+')}
                               </th>
                             ))}
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 font-medium text-slate-600 bg-white">
-                          {Object.keys(DIMENSI_INFO).map((dimId, idx) => {
+                        <tbody className="font-medium text-slate-600 bg-white">
+                          {Object.keys(DIMENSI_INFO).map((dimId, idx, arr) => {
                             const info = DIMENSI_INFO[dimId];
                             const tObj = tenureDimensionScores.find(s => s.id === dimId);
                             const wObj = workHoursDimensionScores.find(s => s.id === dimId);
+                            const isLastRow = idx === arr.length - 1;
+                            const g1List = demografiStats.g1Data.slice(0, 4);
+                            const g3List = demografiStats.g3Data.slice(0, 4);
                             return (
-                              <tr key={dimId} className="hover:bg-slate-50/40">
-                                <td className="p-1 border-r border-slate-100 text-center font-bold text-amber-700" style={{ width: '5%' }}>{idx + 1}</td>
-                                <td className="p-1 border-r border-slate-100 font-semibold text-slate-800 break-words text-[8.5px]" style={{ width: '35%' }}>{info.nama}</td>
-                                {demografiStats.g1Data.slice(0, 4).map(g1 => {
+                              <tr key={dimId}>
+                                <td className="p-1 bg-white text-center font-bold text-amber-700" style={{ width: '5%', backgroundColor: '#ffffff', borderRight: '1px solid #cbd5e1', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>{idx + 1}</td>
+                                <td className="p-1 bg-white font-semibold text-slate-800 break-words text-[8.5px]" style={{ width: '35%', backgroundColor: '#ffffff', borderRight: '1px solid #cbd5e1', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>{info.nama}</td>
+                                {g1List.map(g1 => {
                                   const val = tObj ? tObj[g1.name] : null;
                                   return (
-                                    <td key={g1.name} className="p-1 text-center border-r border-slate-100 font-extrabold text-teal-800 bg-teal-50/20" style={{ width: `${30 / Math.max(1, demografiStats.g1Data.slice(0, 4).length)}%` }}>
+                                    <td key={g1.name} className="p-1 text-center font-extrabold text-teal-800" style={{ width: `${30 / Math.max(1, g1List.length)}%`, backgroundColor: '#f8fafc', borderRight: '1px solid #cbd5e1', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>
                                       {val !== undefined && val !== null ? `${val.toFixed(1)}%` : '-'}
                                     </td>
                                   );
                                 })}
-                                {demografiStats.g3Data.slice(0, 4).map(g3 => {
+                                {g3List.map((g3, g3Idx) => {
                                   const val = wObj ? wObj[g3.name] : null;
                                   return (
-                                    <td key={g3.name} className="p-1 text-center border-r border-slate-100 font-extrabold text-indigo-800 bg-indigo-50/20 last:border-r-0" style={{ width: `${30 / Math.max(1, demografiStats.g3Data.slice(0, 4).length)}%` }}>
+                                    <td key={g3.name} className="p-1 text-center font-extrabold text-indigo-800" style={{ width: `${30 / Math.max(1, g3List.length)}%`, backgroundColor: '#f8fafc', borderRight: g3Idx < g3List.length - 1 ? '1px solid #cbd5e1' : 'none', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>
                                       {val !== undefined && val !== null ? `${val.toFixed(1)}%` : '-'}
                                     </td>
                                   );
@@ -4446,8 +4457,8 @@ export default function LaporanTab({
                       </div>
 
                       {/* Tabel Perbandingan Periode */}
-                      <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                        <table className="w-full table-fixed text-left border-collapse text-[8.5px]">
+                      <div className="overflow-hidden border border-slate-300 rounded-xl bg-white" style={{ border: '1px solid #cbd5e1' }}>
+                        <table className="w-full table-fixed text-left border-separate border-spacing-0 text-[8.5px]" style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%' }}>
                           <colgroup>
                             <col style={{ width: '10%' }} />
                             <col style={{ width: '45%' }} />
@@ -4456,25 +4467,26 @@ export default function LaporanTab({
                             <col style={{ width: '15%' }} />
                           </colgroup>
                           <thead>
-                            <tr className="bg-emerald-900 text-white font-extrabold uppercase text-[8px] border-b border-emerald-950">
-                              <th className="p-1.5 border-r border-emerald-800 text-center break-words whitespace-normal" style={{ width: '10%' }}>Kode</th>
-                              <th className="p-1.5 border-r border-emerald-800 break-words whitespace-normal" style={{ width: '45%' }}>Dimensi Budaya Keselamatan</th>
-                              <th className="p-1.5 text-center border-r border-emerald-800 break-words whitespace-normal" style={{ width: '15%' }}>{previousYear}</th>
-                              <th className="p-1.5 text-center border-r border-emerald-800 break-words whitespace-normal" style={{ width: '15%' }}>{tahunSurvei}</th>
-                              <th className="p-1.5 text-center break-words whitespace-normal" style={{ width: '15%' }}>Selisih (Trend)</th>
+                            <tr className="text-white font-extrabold uppercase text-[8px]">
+                              <th className="p-1.5 bg-emerald-900 text-center break-words whitespace-normal" style={{ width: '10%', backgroundColor: '#064e3b', borderRight: '1px solid #065f46', borderBottom: '1px solid #022c22' }}>Kode</th>
+                              <th className="p-1.5 bg-emerald-900 break-words whitespace-normal" style={{ width: '45%', backgroundColor: '#064e3b', borderRight: '1px solid #065f46', borderBottom: '1px solid #022c22' }}>Dimensi Budaya Keselamatan</th>
+                              <th className="p-1.5 bg-emerald-900 text-center break-words whitespace-normal" style={{ width: '15%', backgroundColor: '#064e3b', borderRight: '1px solid #065f46', borderBottom: '1px solid #022c22' }}>{previousYear}</th>
+                              <th className="p-1.5 bg-emerald-900 text-center break-words whitespace-normal" style={{ width: '15%', backgroundColor: '#064e3b', borderRight: '1px solid #065f46', borderBottom: '1px solid #022c22' }}>{tahunSurvei}</th>
+                              <th className="p-1.5 bg-emerald-900 text-center break-words whitespace-normal" style={{ width: '15%', backgroundColor: '#064e3b', borderBottom: '1px solid #022c22' }}>Selisih (Trend)</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 font-medium text-slate-600 bg-white">
-                            {dimensionScores.map(d => {
+                          <tbody className="font-medium text-slate-600 bg-white">
+                            {dimensionScores.map((d, idx, arr) => {
                               const prior = priorYearScores.find(p => p.kode === d.kode)?.percentage || 0;
                               const diff = d.percentage - prior;
+                              const isLastRow = idx === arr.length - 1;
                               return (
-                                <tr key={d.kode} className="hover:bg-slate-50/40">
-                                  <td className="p-1.5 border-r border-slate-100 text-center font-bold text-slate-700" style={{ width: '10%' }}>{d.kode}</td>
-                                  <td className="p-1.5 border-r border-slate-100 font-semibold text-slate-800 break-words" style={{ width: '45%' }}>{d.nama}</td>
-                                  <td className="p-1.5 text-center border-r border-slate-100 font-bold text-slate-500" style={{ width: '15%' }}>{prior.toFixed(1)}%</td>
-                                  <td className="p-1.5 text-center border-r border-slate-100 font-extrabold text-teal-800" style={{ width: '15%' }}>{d.percentage.toFixed(1)}%</td>
-                                  <td className="p-1.5 text-center" style={{ width: '15%' }}>
+                                <tr key={d.kode}>
+                                  <td className="p-1.5 bg-white text-center font-bold text-slate-700" style={{ width: '10%', backgroundColor: '#ffffff', borderRight: '1px solid #cbd5e1', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>{d.kode}</td>
+                                  <td className="p-1.5 bg-white font-semibold text-slate-800 break-words" style={{ width: '45%', backgroundColor: '#ffffff', borderRight: '1px solid #cbd5e1', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>{d.nama}</td>
+                                  <td className="p-1.5 bg-white text-center font-bold text-slate-500" style={{ width: '15%', backgroundColor: '#ffffff', borderRight: '1px solid #cbd5e1', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>{prior.toFixed(1)}%</td>
+                                  <td className="p-1.5 bg-white text-center font-extrabold text-teal-800" style={{ width: '15%', backgroundColor: '#ffffff', borderRight: '1px solid #cbd5e1', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>{d.percentage.toFixed(1)}%</td>
+                                  <td className="p-1.5 bg-white text-center" style={{ width: '15%', backgroundColor: '#ffffff', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>
                                     <span className={`px-2 py-0.5 rounded-full text-[8px] font-black inline-flex items-center gap-1 ${diff >= 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
                                       {diff >= 0 ? '▲' : '▼'} {diff >= 0 ? `+${diff.toFixed(1)}%` : `${diff.toFixed(1)}%`}
                                     </span>
@@ -4576,8 +4588,8 @@ export default function LaporanTab({
                         </div>
 
                         {/* Tabel Benchmark */}
-                        <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                          <table className="w-full table-fixed text-left border-collapse text-[8.5px]">
+                        <div className="overflow-hidden border border-slate-300 rounded-xl bg-white" style={{ border: '1px solid #cbd5e1' }}>
+                          <table className="w-full table-fixed text-left border-separate border-spacing-0 text-[8.5px]" style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%' }}>
                             <colgroup>
                               <col style={{ width: '10%' }} />
                               <col style={{ width: '40%' }} />
@@ -4586,28 +4598,31 @@ export default function LaporanTab({
                               <col style={{ width: '20%' }} />
                             </colgroup>
                             <thead>
-                              <tr className="bg-indigo-900 text-white font-extrabold uppercase text-[8px] border-b border-indigo-950">
-                                <th className="p-1.5 border-r border-indigo-800 text-center break-words whitespace-normal" style={{ width: '10%' }}>Kode</th>
-                                <th className="p-1.5 border-r border-indigo-800 break-words whitespace-normal" style={{ width: '40%' }}>Dimensi Budaya Keselamatan</th>
-                                <th className="p-1.5 text-center border-r border-indigo-800 break-words whitespace-normal" style={{ width: '15%' }}>{activeHospitalName} (Anda)</th>
-                                <th className="p-1.5 text-center border-r border-indigo-800 break-words whitespace-normal" style={{ width: '15%' }}>{selectedBenchmarkHospital.namaRs}</th>
-                                <th className="p-1.5 text-center break-words whitespace-normal" style={{ width: '20%' }}>Kesenjangan (Gap)</th>
+                              <tr className="text-white font-extrabold uppercase text-[8px]">
+                                <th className="p-1.5 bg-indigo-900 text-center break-words whitespace-normal" style={{ width: '10%', backgroundColor: '#312e81', borderRight: '1px solid #3730a3', borderBottom: '1px solid #1e1b4b' }}>Kode</th>
+                                <th className="p-1.5 bg-indigo-900 break-words whitespace-normal" style={{ width: '40%', backgroundColor: '#312e81', borderRight: '1px solid #3730a3', borderBottom: '1px solid #1e1b4b' }}>Dimensi Budaya Keselamatan</th>
+                                <th className="p-1.5 bg-indigo-900 text-center break-words whitespace-normal" style={{ width: '15%', backgroundColor: '#312e81', borderRight: '1px solid #3730a3', borderBottom: '1px solid #1e1b4b' }}>{activeHospitalName} (Anda)</th>
+                                <th className="p-1.5 bg-indigo-900 text-center break-words whitespace-normal" style={{ width: '15%', backgroundColor: '#312e81', borderRight: '1px solid #3730a3', borderBottom: '1px solid #1e1b4b' }}>{selectedBenchmarkHospital.namaRs}</th>
+                                <th className="p-1.5 bg-indigo-900 text-center break-words whitespace-normal" style={{ width: '20%', backgroundColor: '#312e81', borderBottom: '1px solid #1e1b4b' }}>Kesenjangan (Gap)</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100 font-medium text-slate-600 bg-white">
-                              {benchmarkData.map(b => (
-                                <tr key={b.kode} className="hover:bg-slate-50/40">
-                                  <td className="p-1.5 border-r border-slate-100 text-center font-bold text-slate-700" style={{ width: '10%' }}>{b.kode}</td>
-                                  <td className="p-1.5 border-r border-slate-100 font-semibold text-slate-800 break-words" style={{ width: '40%' }}>{b.nama}</td>
-                                  <td className="p-1.5 text-center border-r border-slate-100 font-extrabold text-indigo-700 bg-slate-50/20" style={{ width: '15%' }}>{b.rsPct.toFixed(1)}%</td>
-                                  <td className="p-1.5 text-center border-r border-slate-100 font-bold text-slate-500" style={{ width: '15%' }}>{b.benchPct.toFixed(1)}%</td>
-                                  <td className="p-1.5 text-center" style={{ width: '20%' }}>
-                                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black inline-flex items-center gap-1 ${b.diff >= 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
-                                      {b.diff >= 0 ? '▲ +' : '▼ '} {b.diff >= 0 ? `+${b.diff.toFixed(1)}%` : `${b.diff.toFixed(1)}%`}
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))}
+                            <tbody className="font-medium text-slate-600 bg-white">
+                              {benchmarkData.map((b, idx, arr) => {
+                                const isLastRow = idx === arr.length - 1;
+                                return (
+                                  <tr key={b.kode}>
+                                    <td className="p-1.5 bg-white text-center font-bold text-slate-700" style={{ width: '10%', backgroundColor: '#ffffff', borderRight: '1px solid #cbd5e1', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>{b.kode}</td>
+                                    <td className="p-1.5 bg-white font-semibold text-slate-800 break-words" style={{ width: '40%', backgroundColor: '#ffffff', borderRight: '1px solid #cbd5e1', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>{b.nama}</td>
+                                    <td className="p-1.5 text-center font-extrabold text-indigo-700" style={{ width: '15%', backgroundColor: '#f8fafc', borderRight: '1px solid #cbd5e1', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>{b.rsPct.toFixed(1)}%</td>
+                                    <td className="p-1.5 bg-white text-center font-bold text-slate-500" style={{ width: '15%', backgroundColor: '#ffffff', borderRight: '1px solid #cbd5e1', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>{b.benchPct.toFixed(1)}%</td>
+                                    <td className="p-1.5 bg-white text-center" style={{ width: '20%', backgroundColor: '#ffffff', borderBottom: isLastRow ? 'none' : '1px solid #cbd5e1' }}>
+                                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-black inline-flex items-center gap-1 ${b.diff >= 0 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                                        {b.diff >= 0 ? '▲ +' : '▼ '} {b.diff >= 0 ? `+${b.diff.toFixed(1)}%` : `${b.diff.toFixed(1)}%`}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>

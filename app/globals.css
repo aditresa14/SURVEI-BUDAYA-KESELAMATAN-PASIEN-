@@ -226,11 +226,9 @@
   will-change: transform, opacity;
 }
 
-/* Force hardware acceleration for all interactive elements and layout wrappers */
-main, video, canvas, select, button, .recharts-wrapper {
-  transform: translate3d(0,0,0) !important;
-  backface-visibility: hidden !important;
-  perspective: 1000px !important;
+/* Force hardware acceleration for layout wrappers without locking button transforms */
+main, video, canvas, .recharts-wrapper {
+  backface-visibility: hidden;
 }
 
 /* Smooth out scrolling rendering for high-frequency displays */

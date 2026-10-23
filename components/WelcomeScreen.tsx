@@ -152,7 +152,42 @@ export default function WelcomeScreen({ onEnter, activeLogo }: WelcomeScreenProp
             className="pt-2 flex flex-col sm:flex-row gap-4 items-center justify-start"
           >
             <button
-              onClick={onEnter}
+              type="button"
+              onMouseEnter={(e) => {
+                e.currentTarget.animate(
+                  [
+                    { transform: 'scale3d(1, 1, 1)' },
+                    { transform: 'scale3d(1.18, 0.82, 1)', offset: 0.25 },
+                    { transform: 'scale3d(0.84, 1.16, 1)', offset: 0.45 },
+                    { transform: 'scale3d(1.09, 0.91, 1)', offset: 0.65 },
+                    { transform: 'scale3d(0.96, 1.04, 1)', offset: 0.82 },
+                    { transform: 'scale3d(1, 1, 1)' }
+                  ],
+                  { duration: 720, easing: 'cubic-bezier(0.25, 0.8, 0.25, 1)' }
+                );
+              }}
+              onPointerDown={(e) => {
+                e.currentTarget.animate(
+                  [
+                    { transform: 'scale3d(1, 1, 1)' },
+                    { transform: 'scale3d(1.15, 0.84, 1)' }
+                  ],
+                  { duration: 110, easing: 'ease-out', fill: 'forwards' }
+                );
+              }}
+              onClick={(e) => {
+                const anim = e.currentTarget.animate(
+                  [
+                    { transform: 'scale3d(1.16, 0.82, 1)' },
+                    { transform: 'scale3d(0.85, 1.15, 1)', offset: 0.35 },
+                    { transform: 'scale3d(1.08, 0.92, 1)', offset: 0.68 },
+                    { transform: 'scale3d(0.98, 1.02, 1)', offset: 0.86 },
+                    { transform: 'scale3d(1, 1, 1)' }
+                  ],
+                  { duration: 280, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+                );
+                anim.onfinish = () => onEnter();
+              }}
               className="btn-jelly group px-8 py-4 bg-gradient-to-r from-[#43B8BD] to-[#2FA7A7] hover:from-[#369C9F] hover:to-[#1E6F73] text-white font-extrabold rounded-2xl inline-flex items-center gap-3.5 shadow-md shadow-teal-500/20 hover:shadow-xl hover:shadow-teal-500/35 cursor-pointer text-sm tracking-wide select-none"
             >
               MULAI SURVEI

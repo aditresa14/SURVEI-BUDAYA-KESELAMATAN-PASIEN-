@@ -381,6 +381,30 @@ export default function LoginScreen({
 
               <button
                 type="submit"
+                onMouseEnter={(e) => {
+                  e.currentTarget.animate(
+                    [
+                      { transform: 'scale3d(1, 1, 1)' },
+                      { transform: 'scale3d(1.14, 0.85, 1)', offset: 0.25 },
+                      { transform: 'scale3d(0.88, 1.12, 1)', offset: 0.45 },
+                      { transform: 'scale3d(1.06, 0.94, 1)', offset: 0.65 },
+                      { transform: 'scale3d(0.97, 1.03, 1)', offset: 0.82 },
+                      { transform: 'scale3d(1, 1, 1)' }
+                    ],
+                    { duration: 700, easing: 'cubic-bezier(0.25, 0.8, 0.25, 1)' }
+                  );
+                }}
+                onPointerDown={(e) => {
+                  e.currentTarget.animate(
+                    [
+                      { transform: 'scale3d(1, 1, 1)' },
+                      { transform: 'scale3d(1.10, 0.86, 1)' },
+                      { transform: 'scale3d(0.92, 1.08, 1)' },
+                      { transform: 'scale3d(1, 1, 1)' }
+                    ],
+                    { duration: 280, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+                  );
+                }}
                 className="btn-jelly w-full py-4 bg-gradient-to-r from-[#43B8BD] to-[#2FA7A7] hover:from-[#369C9F] hover:to-[#1E6F73] text-white font-black uppercase tracking-widest rounded-2xl text-xs shadow-md shadow-teal-500/15 hover:shadow-xl hover:shadow-teal-500/30 cursor-pointer flex items-center justify-center gap-2 group ring-1 ring-white/40 select-none"
               >
                 <LogIn className="w-4 h-4 transition-transform group-hover:translate-x-1" /> Masuk ke Portal RS
@@ -436,6 +460,30 @@ export default function LoginScreen({
 
               <button
                 type="submit"
+                onMouseEnter={(e) => {
+                  e.currentTarget.animate(
+                    [
+                      { transform: 'scale3d(1, 1, 1)' },
+                      { transform: 'scale3d(1.14, 0.85, 1)', offset: 0.25 },
+                      { transform: 'scale3d(0.88, 1.12, 1)', offset: 0.45 },
+                      { transform: 'scale3d(1.06, 0.94, 1)', offset: 0.65 },
+                      { transform: 'scale3d(0.97, 1.03, 1)', offset: 0.82 },
+                      { transform: 'scale3d(1, 1, 1)' }
+                    ],
+                    { duration: 700, easing: 'cubic-bezier(0.25, 0.8, 0.25, 1)' }
+                  );
+                }}
+                onPointerDown={(e) => {
+                  e.currentTarget.animate(
+                    [
+                      { transform: 'scale3d(1, 1, 1)' },
+                      { transform: 'scale3d(1.10, 0.86, 1)' },
+                      { transform: 'scale3d(0.92, 1.08, 1)' },
+                      { transform: 'scale3d(1, 1, 1)' }
+                    ],
+                    { duration: 280, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+                  );
+                }}
                 className="btn-jelly w-full py-4 bg-gradient-to-r from-[#43B8BD] to-[#2FA7A7] hover:from-[#369C9F] hover:to-[#1E6F73] text-white font-black uppercase tracking-widest rounded-2xl text-xs shadow-md shadow-teal-500/15 hover:shadow-xl hover:shadow-teal-500/30 cursor-pointer flex items-center justify-center gap-2 group ring-1 ring-white/40 select-none"
               >
                 <LogIn className="w-4 h-4 transition-transform group-hover:translate-x-1" /> Masuk Admin Utama

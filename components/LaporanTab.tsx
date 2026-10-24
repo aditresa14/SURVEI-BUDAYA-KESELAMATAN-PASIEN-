@@ -5039,9 +5039,11 @@ export default function LaporanTab({
                           </div>
                           <div>
                             <p className="font-extrabold text-slate-900 underline">
-                              {pengesahanConfig?.direkturNama || 'dr. H. Ahmad Wijaya'}{pengesahanConfig?.direkturGelar && !pengesahanConfig.direkturNama.includes(pengesahanConfig.direkturGelar) ? ", " + pengesahanConfig.direkturGelar : ''}
+                              {pengesahanConfig?.direkturNama || 'dr. H. Ahmad Wijaya'}{pengesahanConfig?.direkturGelar && !pengesahanConfig.direkturNama.includes(pengesahanConfig.direkturGelar) ? (pengesahanConfig.direkturGelar.trim().startsWith(',') ? pengesahanConfig.direkturGelar : ", " + pengesahanConfig.direkturGelar) : ''}
                             </p>
-                            <p className="text-slate-500 font-medium">NIP/ID: {pengesahanConfig?.direkturNip || '19780512 200501 1 002'}</p>
+                            <p className="text-slate-500 font-medium">
+                              {(pengesahanConfig?.direkturNipType || 'NIP') === 'ID' ? 'ID' : 'NIP'} : {(pengesahanConfig?.direkturNip || '19780512 200501 1 002').replace(/^(NIP\s*\/?\s*ID|NIP|ID)\s*[:.]\s*/i, '').trim()}
+                            </p>
                           </div>
                         </div>
 
@@ -5052,9 +5054,11 @@ export default function LaporanTab({
                           </div>
                           <div>
                             <p className="font-extrabold text-slate-900 underline">
-                              {pengesahanConfig?.pjNama || 'dr. Budi Santoso'}{pengesahanConfig?.pjGelar && !pengesahanConfig.pjNama.includes(pengesahanConfig.pjGelar) ? ", " + pengesahanConfig.pjGelar : ''}
+                              {pengesahanConfig?.pjNama || 'dr. Budi Santoso'}{pengesahanConfig?.pjGelar && !pengesahanConfig.pjNama.includes(pengesahanConfig.pjGelar) ? (pengesahanConfig.pjGelar.trim().startsWith(',') ? pengesahanConfig.pjGelar : ", " + pengesahanConfig.pjGelar) : ''}
                             </p>
-                            <p className="text-slate-500 font-medium">NIP/ID: {pengesahanConfig?.pjNip || '19820315 200804 1 005'}</p>
+                            <p className="text-slate-500 font-medium">
+                              {(pengesahanConfig?.pjNipType || 'NIP') === 'ID' ? 'ID' : 'NIP'} : {(pengesahanConfig?.pjNip || '19820315 200804 1 005').replace(/^(NIP\s*\/?\s*ID|NIP|ID)\s*[:.]\s*/i, '').trim()}
+                            </p>
                           </div>
                         </div>
                       </div>

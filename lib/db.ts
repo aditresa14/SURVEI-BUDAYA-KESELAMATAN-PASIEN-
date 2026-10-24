@@ -2453,12 +2453,14 @@ export interface PengesahanConfig {
   direkturNama: string;
   direkturGelar?: string;
   direkturJabatan: string;
+  direkturNipType?: 'NIP' | 'ID';
   direkturNip: string;
   
   // Penanggung Jawab Survei
   pjNama: string;
   pjGelar?: string;
   pjJabatan: string;
+  pjNipType?: 'NIP' | 'ID';
   pjNip: string;
 }
 
@@ -2531,11 +2533,13 @@ export async function getPengesahanConfig(hospitalIdOrUsername?: string, current
     direkturNama: foundConfig?.direkturNama || 'dr. H. Ahmad Wijaya',
     direkturGelar: foundConfig?.direkturGelar || 'MARS',
     direkturJabatan: foundConfig?.direkturJabatan || 'Direktur Utama Rumah Sakit',
+    direkturNipType: foundConfig?.direkturNipType || 'NIP',
     direkturNip: foundConfig?.direkturNip || '19780512 200501 1 002',
 
     pjNama: foundConfig?.pjNama || 'dr. Budi Santoso',
     pjGelar: foundConfig?.pjGelar || 'Sp.KP',
     pjJabatan: foundConfig?.pjJabatan || 'Ketua Komite Mutu & Keselamatan Pasien',
+    pjNipType: foundConfig?.pjNipType || 'NIP',
     pjNip: foundConfig?.pjNip || '19820315 200804 1 005',
   };
 }

@@ -75,9 +75,11 @@ export interface ReportData {
     tanggal: string;
     penanggungJawabNama: string;
     penanggungJawabJabatan: string;
+    penanggungJawabNipType?: 'NIP' | 'ID';
     penanggungJawabNip?: string;
     direkturNama: string;
     direkturJabatan: string;
+    direkturNipType?: 'NIP' | 'ID';
     direkturNip?: string;
   };
   pageImages?: (string | { data: string; isLandscape?: boolean })[];
@@ -1279,7 +1281,7 @@ export async function exportReportToDocx(data: ReportData) {
                       p(data.pengesahan.direkturJabatan || 'Direktur Utama Rumah Sakit', { align: AlignmentType.CENTER }),
                       p("\n\n\n\n", { align: AlignmentType.CENTER }),
                       p(data.pengesahan.direkturNama || 'dr. H. Ahmad Wijaya', { align: AlignmentType.CENTER, bold: true }),
-                      p(`NIP / ID: ${data.pengesahan.direkturNip || '19780512 200501 1 002'}`, { align: AlignmentType.CENTER, size: 18, color: "64748B" }),
+                      p(`${(data.pengesahan.direkturNipType || 'NIP') === 'ID' ? 'ID' : 'NIP'} : ${(data.pengesahan.direkturNip || '19780512 200501 1 002').replace(/^(NIP\s*\/?\s*ID|NIP|ID)\s*[:.]\s*/i, '').trim()}`, { align: AlignmentType.CENTER, size: 18, color: "64748B" }),
                     ],
                     borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
                   }),
@@ -1289,7 +1291,7 @@ export async function exportReportToDocx(data: ReportData) {
                       p(data.pengesahan.penanggungJawabJabatan || 'Ketua Komite Mutu & Keselamatan Pasien', { align: AlignmentType.CENTER }),
                       p("\n\n\n\n", { align: AlignmentType.CENTER }),
                       p(data.pengesahan.penanggungJawabNama || 'dr. Budi Santoso', { align: AlignmentType.CENTER, bold: true }),
-                      p(`NIP / ID: ${data.pengesahan.penanggungJawabNip || '19820315 200804 1 005'}`, { align: AlignmentType.CENTER, size: 18, color: "64748B" }),
+                      p(`${(data.pengesahan.penanggungJawabNipType || 'NIP') === 'ID' ? 'ID' : 'NIP'} : ${(data.pengesahan.penanggungJawabNip || '19820315 200804 1 005').replace(/^(NIP\s*\/?\s*ID|NIP|ID)\s*[:.]\s*/i, '').trim()}`, { align: AlignmentType.CENTER, size: 18, color: "64748B" }),
                     ],
                     borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
                   }),

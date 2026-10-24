@@ -289,10 +289,12 @@ export default function PengaturanTab({
     direkturNama: 'dr. H. Ahmad Wijaya',
     direkturGelar: 'MARS',
     direkturJabatan: 'Direktur Utama Rumah Sakit',
+    direkturNipType: 'NIP',
     direkturNip: '19780512 200501 1 002',
     pjNama: 'dr. Budi Santoso',
     pjGelar: 'Sp.KP',
     pjJabatan: 'Ketua Komite Mutu & Keselamatan Pasien',
+    pjNipType: 'NIP',
     pjNip: '19820315 200804 1 005',
   });
   const [isSavingPengesahan, setIsSavingPengesahan] = useState(false);
@@ -2448,19 +2450,42 @@ CREATE POLICY "Menghapus Publik Logo" ON storage.objects FOR DELETE USING (bucke
                   />
                 </div>
 
-                {/* NIP */}
+                {/* NIP / ID Direktur */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                    NIP / ID Pegawai <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={pengesahanForm.direkturNip}
-                    onChange={(e) => setPengesahanForm(prev => ({ ...prev, direkturNip: e.target.value }))}
-                    placeholder="Contoh: 19780512 200501 1 002"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-mono focus:bg-white focus:border-indigo-500 transition-all outline-none"
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                      Nomor Identitas <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200 text-[11px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setPengesahanForm(prev => ({ ...prev, direkturNipType: 'NIP' }))}
+                        className={`px-2.5 py-1 rounded-md transition-all ${(pengesahanForm.direkturNipType || 'NIP') === 'NIP' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                      >
+                        NIP
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPengesahanForm(prev => ({ ...prev, direkturNipType: 'ID' }))}
+                        className={`px-2.5 py-1 rounded-md transition-all ${pengesahanForm.direkturNipType === 'ID' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                      >
+                        ID Pegawai
+                      </button>
+                    </div>
+                  </div>
+                  <div className="relative flex rounded-xl border border-slate-200 bg-slate-50 overflow-hidden focus-within:border-indigo-500 focus-within:bg-white transition-all">
+                    <div className="px-3 py-2.5 bg-slate-100/90 border-r border-slate-200 text-xs font-bold text-indigo-700 shrink-0 select-none flex items-center">
+                      {(pengesahanForm.direkturNipType || 'NIP') === 'ID' ? 'ID :' : 'NIP :'}
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={pengesahanForm.direkturNip}
+                      onChange={(e) => setPengesahanForm(prev => ({ ...prev, direkturNip: e.target.value }))}
+                      placeholder={(pengesahanForm.direkturNipType || 'NIP') === 'ID' ? "Contoh: D00237 / PEG-104" : "Contoh: 19801109 200312 1 002"}
+                      className="w-full bg-transparent px-3 py-2.5 text-xs text-slate-800 font-mono transition-all outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -2517,19 +2542,42 @@ CREATE POLICY "Menghapus Publik Logo" ON storage.objects FOR DELETE USING (bucke
                   />
                 </div>
 
-                {/* NIP */}
+                {/* NIP / ID PJ */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                    NIP / ID Pegawai <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={pengesahanForm.pjNip}
-                    onChange={(e) => setPengesahanForm(prev => ({ ...prev, pjNip: e.target.value }))}
-                    placeholder="Contoh: 19820315 200804 1 005"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-mono focus:bg-white focus:border-emerald-500 transition-all outline-none"
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                      Nomor Identitas <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="inline-flex p-0.5 bg-slate-100 rounded-lg border border-slate-200 text-[11px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setPengesahanForm(prev => ({ ...prev, pjNipType: 'NIP' }))}
+                        className={`px-2.5 py-1 rounded-md transition-all ${(pengesahanForm.pjNipType || 'NIP') === 'NIP' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                      >
+                        NIP
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPengesahanForm(prev => ({ ...prev, pjNipType: 'ID' }))}
+                        className={`px-2.5 py-1 rounded-md transition-all ${pengesahanForm.pjNipType === 'ID' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                      >
+                        ID Pegawai
+                      </button>
+                    </div>
+                  </div>
+                  <div className="relative flex rounded-xl border border-slate-200 bg-slate-50 overflow-hidden focus-within:border-emerald-500 focus-within:bg-white transition-all">
+                    <div className="px-3 py-2.5 bg-slate-100/90 border-r border-slate-200 text-xs font-bold text-emerald-700 shrink-0 select-none flex items-center">
+                      {(pengesahanForm.pjNipType || 'NIP') === 'ID' ? 'ID :' : 'NIP :'}
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      value={pengesahanForm.pjNip}
+                      onChange={(e) => setPengesahanForm(prev => ({ ...prev, pjNip: e.target.value }))}
+                      placeholder={(pengesahanForm.pjNipType || 'NIP') === 'ID' ? "Contoh: D00237 / PEG-104" : "Contoh: 19890423 202203 1 004"}
+                      className="w-full bg-transparent px-3 py-2.5 text-xs text-slate-800 font-mono transition-all outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 

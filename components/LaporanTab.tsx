@@ -2068,7 +2068,7 @@ export default function LaporanTab({
       ` }} />
 
       {/* Benchmark Access Status Alert */}
-      {selectedBenchmarkId !== 'none' && selectedBenchmarkHospital && (
+      {selectedBenchmarkId !== 'none' && selectedBenchmarkHospital && role !== 'admin' && (
         <AnimatePresence mode="wait">
           {!currentRequestForSelectedHospital ? (
             <motion.div 
@@ -4469,7 +4469,7 @@ export default function LaporanTab({
                           <thead>
                             <tr className="text-white font-extrabold uppercase text-[8px]">
                               <th className="p-1.5 bg-emerald-900 text-center break-words whitespace-normal" style={{ width: '10%', backgroundColor: '#064e3b', borderRight: '1px solid #065f46', borderBottom: '1px solid #022c22' }}>Kode</th>
-                              <th className="p-1.5 bg-emerald-900 break-words whitespace-normal" style={{ width: '45%', backgroundColor: '#064e3b', borderRight: '1px solid #065f46', borderBottom: '1px solid #022c22' }}>Dimensi Budaya Keselamatan</th>
+                              <th className="p-1.5 bg-emerald-900 text-center break-words whitespace-normal" style={{ width: '45%', textAlign: 'center', backgroundColor: '#064e3b', borderRight: '1px solid #065f46', borderBottom: '1px solid #022c22' }}>Dimensi Budaya Keselamatan Pasien</th>
                               <th className="p-1.5 bg-emerald-900 text-center break-words whitespace-normal" style={{ width: '15%', backgroundColor: '#064e3b', borderRight: '1px solid #065f46', borderBottom: '1px solid #022c22' }}>{previousYear}</th>
                               <th className="p-1.5 bg-emerald-900 text-center break-words whitespace-normal" style={{ width: '15%', backgroundColor: '#064e3b', borderRight: '1px solid #065f46', borderBottom: '1px solid #022c22' }}>{tahunSurvei}</th>
                               <th className="p-1.5 bg-emerald-900 text-center break-words whitespace-normal" style={{ width: '15%', backgroundColor: '#064e3b', borderBottom: '1px solid #022c22' }}>Selisih (Trend)</th>
@@ -4564,12 +4564,12 @@ export default function LaporanTab({
                   </div>
 
                   {selectedBenchmarkHospital ? (
-                    currentRequestForSelectedHospital?.status === 'approved' && benchmarkData ? (
+                    (role === 'admin' || currentRequestForSelectedHospital?.status === 'approved') && benchmarkData ? (
                       <div className="space-y-3">
                         {/* Grafik Benchmark BarChart */}
                         <div className="bg-indigo-50/40 border border-indigo-100 p-2.5 rounded-xl">
                           <div className="flex items-center justify-between text-[10px] font-bold text-indigo-900 mb-1 px-1">
-                            <span>Grafik Komparasi Benchmark RS Anda vs RS Pembanding (%)</span>
+                            <span>Grafik Komparasi Benchmark RS vs RS Pembanding (%)</span>
                             <span className="text-indigo-700">{selectedBenchmarkHospital.namaRs}</span>
                           </div>
                           <div className="w-full h-36" style={{ fontFamily: "'Poppins', var(--font-sans), sans-serif" }}>
@@ -4580,7 +4580,7 @@ export default function LaporanTab({
                                 <YAxis domain={[0, 100]} tick={{ fontSize: 8, fill: '#475569', fontFamily: "'Poppins', var(--font-sans), sans-serif" }} unit="%" />
                                 <Tooltip formatter={(value: any) => [`${value}%`]} labelStyle={{ fontWeight: 'bold', fontFamily: "'Poppins', var(--font-sans), sans-serif" }} />
                                 <Legend wrapperStyle={{ fontSize: '8.5px', paddingTop: '2px', fontFamily: "'Poppins', var(--font-sans), sans-serif" }} />
-                                <Bar dataKey="rsPct" fill="#4f46e5" radius={[3, 3, 0, 0]} name={`${activeHospitalName} (Anda)`} isAnimationActive={false} />
+                                <Bar dataKey="rsPct" fill="#4f46e5" radius={[3, 3, 0, 0]} name={activeHospitalName} isAnimationActive={false} />
                                 <Bar dataKey="benchPct" fill="#94a3b8" radius={[3, 3, 0, 0]} name={selectedBenchmarkHospital.namaRs} isAnimationActive={false} />
                               </BarChart>
                             </ResponsiveContainer>
@@ -4600,10 +4600,10 @@ export default function LaporanTab({
                             <thead>
                               <tr className="text-white font-extrabold uppercase text-[8px]">
                                 <th className="p-1.5 bg-indigo-900 text-center break-words whitespace-normal" style={{ width: '10%', backgroundColor: '#312e81', borderRight: '1px solid #3730a3', borderBottom: '1px solid #1e1b4b' }}>Kode</th>
-                                <th className="p-1.5 bg-indigo-900 break-words whitespace-normal" style={{ width: '40%', backgroundColor: '#312e81', borderRight: '1px solid #3730a3', borderBottom: '1px solid #1e1b4b' }}>Dimensi Budaya Keselamatan</th>
-                                <th className="p-1.5 bg-indigo-900 text-center break-words whitespace-normal" style={{ width: '15%', backgroundColor: '#312e81', borderRight: '1px solid #3730a3', borderBottom: '1px solid #1e1b4b' }}>{activeHospitalName} (Anda)</th>
-                                <th className="p-1.5 bg-indigo-900 text-center break-words whitespace-normal" style={{ width: '15%', backgroundColor: '#312e81', borderRight: '1px solid #3730a3', borderBottom: '1px solid #1e1b4b' }}>{selectedBenchmarkHospital.namaRs}</th>
-                                <th className="p-1.5 bg-indigo-900 text-center break-words whitespace-normal" style={{ width: '20%', backgroundColor: '#312e81', borderBottom: '1px solid #1e1b4b' }}>Kesenjangan (Gap)</th>
+                                <th className="p-1.5 bg-indigo-900 text-center break-words whitespace-normal" style={{ width: '40%', textAlign: 'center', backgroundColor: '#312e81', borderRight: '1px solid #3730a3', borderBottom: '1px solid #1e1b4b' }}>Dimensi Budaya Keselamatan Pasien</th>
+                                <th className="p-1.5 bg-indigo-900 text-center break-words whitespace-normal" style={{ width: '15%', textAlign: 'center', backgroundColor: '#312e81', borderRight: '1px solid #3730a3', borderBottom: '1px solid #1e1b4b' }}>{activeHospitalName}</th>
+                                <th className="p-1.5 bg-indigo-900 text-center break-words whitespace-normal" style={{ width: '15%', textAlign: 'center', backgroundColor: '#312e81', borderRight: '1px solid #3730a3', borderBottom: '1px solid #1e1b4b' }}>{selectedBenchmarkHospital.namaRs}</th>
+                                <th className="p-1.5 bg-indigo-900 text-center break-words whitespace-normal" style={{ width: '20%', textAlign: 'center', backgroundColor: '#312e81', borderBottom: '1px solid #1e1b4b' }}>Kesenjangan (Gap)</th>
                               </tr>
                             </thead>
                             <tbody className="font-medium text-slate-600 bg-white">

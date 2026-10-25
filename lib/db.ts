@@ -691,6 +691,7 @@ export async function saveSurvey(
 
           if (!error && data && data.length > 0) {
             invalidateSurveysCache();
+            triggerGdriveRealtimeSync();
             return mapToSurveyData(data[0]);
           }
           if (error) {
@@ -740,6 +741,7 @@ export async function deleteSurvey(id: string): Promise<void> {
 
       // Invalidate surveys cache
       invalidateSurveysCache();
+      triggerGdriveRealtimeSync();
 
       // 2. Safely attempt to clean up any related survey_submissions (prevent orphan data)
       try {
@@ -1261,6 +1263,7 @@ export async function updateHospitalProfile(id: string, updates: Partial<Hospita
       if (!error) {
         if (data && data.length > 0) {
           invalidateHospitalAccountsCache();
+          triggerGdriveRealtimeSync();
           return mapToHospitalAccount(data[0]);
         }
         throw new Error("Data tidak ditemukan setelah diperbarui.");
@@ -1546,6 +1549,7 @@ export async function saveSubmission(submission: Omit<SurveySubmission, 'id' | '
           .insert([insertRow])
           .select();
         if (!error && data && data.length > 0) {
+          triggerGdriveRealtimeSync();
           return data[0] as SurveySubmission;
         }
         if (error) {
@@ -2587,6 +2591,7 @@ export async function savePengesahanConfig(hospitalIdOrUsername: string, config:
       console.warn("Error saving pengesahan config to localStorage:", e);
     }
   }
+  triggerGdriveRealtimeSync();
 }
 
 export async function sendBenchmarkEmailNotification(to: string, subject: string, body: string): Promise<void> {
@@ -2915,3 +2920,23 @@ export async function verifyResetTokenAndResetPassword(identifier: string, token
 
 
 
+
+// ==========================================
+// REALTIME GOOGLE DRIVE DIRECT SYNC (G:\My Drive)
+// ==========================================
+let gdriveSyncTimer: any = null;
+export function triggerGdriveRealtimeSync() {
+  if (typeof window === "undefined") return;
+  if (gdriveSyncTimer) clearTimeout(gdriveSyncTimer);
+  gdriveSyncTimer = setTimeout(async () => {
+    try {
+      await fetch("/api/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "realtime_sync" })
+      });
+    } catch (err) {
+      console.warn("Realtime Google Drive sync notification skipped:", err);
+    }
+  }, 1200);
+}

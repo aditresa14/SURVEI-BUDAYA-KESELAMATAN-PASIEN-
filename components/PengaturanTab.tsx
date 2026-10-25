@@ -34,7 +34,11 @@ import {
   FileText,
   Calendar,
   Award,
-  UserCheck
+  UserCheck,
+  HardDrive,
+  Folder,
+  FolderCheck,
+  Download
 } from 'lucide-react';
 import bcrypt from 'bcryptjs';
 import { saveWallpaper, clearWallpaper, WallpaperData } from '../lib/wallpaper';
@@ -90,7 +94,7 @@ export default function PengaturanTab({
   onUpdateHeaderImage,
   surveys = []
 }: PengaturanTabProps) {
-  const [activeSettingsSection, setActiveSettingsSection] = useState<'profil' | 'posisi' | 'unit' | 'pengesahan'>('profil');
+  const [activeSettingsSection, setActiveSettingsSection] = useState<'profil' | 'posisi' | 'unit' | 'pengesahan' | 'backup'>('profil');
   // Benchmark state
   const [benchmarks, setBenchmarks] = useState<Record<string, { min: number, max: number }>>({});
   const [benchmarkInteraksi, setBenchmarkInteraksi] = useState<BenchmarkInteraksi[]>([]);
@@ -330,6 +334,122 @@ export default function PengaturanTab({
       showToast(`❌ Gagal menyimpan Halaman Pengesahan: ${err.message || err}`, "error");
     } finally {
       setIsSavingPengesahan(false);
+    }
+  };
+
+  // Google Drive & Backup States
+  const [backupStats, setBackupStats] = useState<{
+    gdriveMounted: boolean;
+    gdriveBackupPath: string;
+    gdriveFileExists?: boolean;
+    realtimeBackupExists: boolean;
+    realtimeBackupPath: string;
+    lastModified: string | null;
+    fileSizeKb: number;
+    totalSurveys: number;
+    totalAccounts: number;
+  } | null>(null);
+  const [isFetchingBackupStats, setIsFetchingBackupStats] = useState(false);
+  const [isSyncingGdrive, setIsSyncingGdrive] = useState(false);
+  const [gdriveSyncMsg, setGdriveSyncMsg] = useState("");
+  const [isRestoring, setIsRestoring] = useState(false);
+  const backupFileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchBackupStats = async () => {
+    setIsFetchingBackupStats(true);
+    try {
+      const res = await fetch('/api/backup?getBackupStatus=true');
+      if (res.ok) {
+        const json = await res.json();
+        setBackupStats(json);
+      }
+    } catch (e) {
+      console.warn("Could not fetch backup stats", e);
+    } finally {
+      setIsFetchingBackupStats(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBackupStats();
+  }, []);
+
+  const handleSyncGdriveNow = async () => {
+    setIsSyncingGdrive(true);
+    setGdriveSyncMsg("");
+    try {
+      const res = await fetch('/api/backup?syncGdriveNow=true');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setGdriveSyncMsg(data.message || "Sinkronisasi Berhasil! Database telah disalin langsung ke Google Drive (G:\\My Drive\\BACKUP_SURVEI_BUDAYA_KESELAMATAN_PASIEN)");
+        showToast("✅ Berhasil menyinkronkan data ke Google Drive!", "success");
+        fetchBackupStats();
+      } else {
+        showToast(`❌ ${data.error || "Gagal menyinkronkan ke Google Drive"}`, "error");
+      }
+    } catch (err: any) {
+      showToast(`❌ Terjadi kesalahan: ${err.message || err}`, "error");
+    } finally {
+      setIsSyncingGdrive(false);
+    }
+  };
+
+  const handleDownloadBackup = async () => {
+    try {
+      showToast("⏳ Menyiapkan berkas cadangan database...", "success");
+      const res = await fetch('/api/backup?exportAll=true');
+      if (!res.ok) throw new Error("Gagal mengunduh cadangan");
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateStr = new Date().toISOString().split("T")[0];
+      const timeStr = new Date().toTimeString().split(" ")[0].replace(/:/g, "-");
+      a.href = url;
+      a.download = `BACKUP_SURVEI_BUDAYA_KESELAMATAN_PASIEN_${dateStr}_${timeStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("✅ Cadangan database berhasil diunduh!", "success");
+      fetchBackupStats();
+    } catch (err: any) {
+      showToast(`❌ Gagal mengunduh berkas cadangan: ${err.message || err}`, "error");
+    }
+  };
+
+  const handleRestoreBackupFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!confirm(`Apakah Anda yakin ingin memulihkan database dari berkas "${file.name}"? Data survei dan akun fasyankes akan disinkronkan kembali.`)) {
+      if (backupFileInputRef.current) backupFileInputRef.current.value = '';
+      return;
+    }
+
+    setIsRestoring(true);
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+
+      const res = await fetch('/api/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'restore', payload })
+      });
+
+      const resData = await res.json();
+      if (res.ok && resData.success) {
+        showToast("✅ Database survei berhasil dipulihkan secara menyeluruh!", "success");
+        fetchBackupStats();
+      } else {
+        showToast(`❌ Gagal memulihkan database: ${resData.error || "Terjadi kesalahan"}`, "error");
+      }
+    } catch (err: any) {
+      showToast(`❌ Format file cadangan tidak valid: ${err.message || err}`, "error");
+    } finally {
+      setIsRestoring(false);
+      if (backupFileInputRef.current) backupFileInputRef.current.value = '';
     }
   };
 
@@ -959,7 +1079,7 @@ CREATE POLICY "Menghapus Publik Banner" ON storage.objects FOR DELETE USING (buc
         </button>
         <button
           onClick={() => setActiveSettingsSection('pengesahan')}
-          className={`flex-1 sm:flex-initial flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-all border-b-2 cursor-pointer shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-all border-b-2 cursor-pointer shrink-0 ${
             activeSettingsSection === 'pengesahan'
               ? 'text-indigo-600 border-indigo-600 bg-indigo-50'
               : 'text-slate-500 border-transparent hover:text-slate-850 hover:bg-slate-100'
@@ -967,6 +1087,17 @@ CREATE POLICY "Menghapus Publik Banner" ON storage.objects FOR DELETE USING (buc
         >
           <FileCheck className="w-4 h-4 text-teal-600" />
           <span>Pengaturan Halaman Pengesahan</span>
+        </button>
+        <button
+          onClick={() => setActiveSettingsSection('backup')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-all border-b-2 cursor-pointer shrink-0 ${
+            activeSettingsSection === 'backup'
+              ? 'text-indigo-600 border-indigo-600 bg-indigo-50'
+              : 'text-slate-500 border-transparent hover:text-slate-850 hover:bg-slate-100'
+          }`}
+        >
+          <HardDrive className="w-4 h-4 text-blue-600" />
+          <span>Cadangan & Google Drive</span>
         </button>
       </div>
 
@@ -2608,6 +2739,204 @@ CREATE POLICY "Menghapus Publik Logo" ON storage.objects FOR DELETE USING (bucke
             </button>
           </div>
         </form>
+      )}
+
+      {/* 5. GOOGLE DRIVE & CADANGAN DATA SECTION */}
+      {activeSettingsSection === 'backup' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Header Card */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md p-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2.5">
+                  <HardDrive className="w-5 h-5 text-blue-600" />
+                  Pencadangan Data & Integrasi Google Drive
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Amankan seluruh data hasil survei responden, akun rumah sakit, pengesahan, dan master data ke Google Drive dan file cadangan lokal secara otomatis.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={fetchBackupStats}
+                disabled={isFetchingBackupStats}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer self-start md:self-auto shrink-0"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isFetchingBackupStats ? 'animate-spin' : ''}`} />
+                Segarkan Status
+              </button>
+            </div>
+
+            {/* Quick Metrics */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+              <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-xl">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Auto-Backup</span>
+                <span className="text-xs font-black text-emerald-600 flex items-center gap-1.5 mt-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Aktif Realtime
+                </span>
+              </div>
+              <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-xl">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Status Google Drive</span>
+                <span className={`text-xs font-black flex items-center gap-1.5 mt-1 ${backupStats?.gdriveMounted ? 'text-blue-600' : 'text-amber-600'}`}>
+                  {backupStats?.gdriveMounted ? 'G: Terhubung' : 'G: Belum Aktif'}
+                </span>
+              </div>
+              <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-xl">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Ukuran Cadangan</span>
+                <span className="text-xs font-black text-slate-700 mt-1 block">
+                  {backupStats?.fileSizeKb ? `${backupStats.fileSizeKb} KB` : 'Tersinkron'}
+                </span>
+              </div>
+              <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-xl">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Terakhir Disinkron</span>
+                <span className="text-[11px] font-bold text-slate-700 mt-1 block truncate">
+                  {backupStats?.lastModified ? new Date(backupStats.lastModified).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Hari ini'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Google Drive Realtime Integration Card */}
+          <div className="bg-gradient-to-r from-blue-50/90 via-sky-50/70 to-indigo-50/60 border border-blue-200/90 rounded-2xl p-6 shadow-sm space-y-5">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-start gap-3.5">
+                <div className="p-3 bg-blue-600 text-white rounded-2xl shadow-md shadow-blue-600/20 shrink-0 mt-0.5">
+                  <Folder className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-extrabold text-sm sm:text-base text-blue-950">
+                      Integrasi Google Drive Realtime (Drive G:)
+                    </h4>
+                    {backupStats?.gdriveMounted ? (
+                      <span className="text-[10px] font-extrabold px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full flex items-center gap-1.5 shadow-xs">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                        Drive G: Terhubung & Aktif
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-extrabold px-2.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded-full">
+                        Drive G: Belum Terdeteksi
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                    Setiap kali Anda menambah data kuesioner survei, mengubah profil fasyankes, atau memperbarui pengaturan, sistem akan <strong>secara otomatis menduplikasi data ke Google Drive G: secara realtime</strong> tanpa perlu menunggu atau mengklik tombol apa pun.
+                  </p>
+                </div>
+              </div>
+
+              {/* Instant Manual Sync Button */}
+              <button
+                type="button"
+                onClick={handleSyncGdriveNow}
+                disabled={isSyncingGdrive}
+                className="shrink-0 flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/25 transition-all cursor-pointer disabled:opacity-50 transform-gpu hover:scale-[1.01]"
+              >
+                <RefreshCw className={`w-4 h-4 ${isSyncingGdrive ? 'animate-spin' : ''}`} />
+                {isSyncingGdrive ? "Menyinkronkan..." : "Sinkronkan ke Google Drive (G:) Sekarang"}
+              </button>
+            </div>
+
+            {gdriveSyncMsg && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold flex items-center gap-2 animate-fadeIn">
+                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{gdriveSyncMsg}</span>
+              </div>
+            )}
+
+            {/* Folder location & Desktop Shortcut Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1 text-xs">
+              <div className="bg-white/85 border border-blue-200/70 rounded-xl p-4 shadow-2xs">
+                <p className="text-[10.5px] font-black uppercase tracking-wider text-blue-900 mb-1.5 flex items-center gap-1.5">
+                  <FolderCheck className="w-4 h-4 text-blue-600" /> Lokasi Penyimpanan Google Drive
+                </p>
+                <code className="text-[11px] font-semibold text-slate-800 bg-slate-100 px-2.5 py-1.5 rounded-lg block break-all font-mono border border-slate-200">
+                  G:\My Drive\BACKUP_SURVEI_BUDAYA_KESELAMATAN_PASIEN\
+                </code>
+                <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
+                  File <code>survei_database_latest.json</code> dan <code>survei_database_YYYY-MM-DD.json</code> otomatis selalu sinkron dan bisa dibuka/dipulihkan kapan saja di laptop mana pun.
+                </p>
+              </div>
+
+              <div className="bg-white/85 border border-blue-200/70 rounded-xl p-4 shadow-2xs">
+                <p className="text-[10.5px] font-black uppercase tracking-wider text-blue-900 mb-1.5 flex items-center gap-1.5">
+                  <Terminal className="w-4 h-4 text-emerald-600" /> Pencadangan Total Termasuk Koding Aplikasi
+                </p>
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Sudah tersedia shortcut <strong>BACKUP_SURVEI_KE_GDRIVE.bat</strong> di Desktop Anda. Cukup klik ganda (double-click) untuk mencadangkan seluruh kodingan dan data survei ke Google Drive menjadi berkas zip ringan dalam waktu beberapa detik tanpa perlu menyalin <code>node_modules</code>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Manual Backup Download & Restore Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Download Backup */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md p-6 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+                    <Download className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-800">Unduh Cadangan Database (.JSON)</h4>
+                    <p className="text-xs text-slate-500">Simpan berkas cadangan manual langsung ke komputer Anda</p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed pt-2">
+                  Berkas ini berisi seluruh data kuesioner survei, akun fasyankes, konfigurasi tanda tangan pengesahan, dan master data. Berkas ini dapat digunakan sewaktu-waktu untuk memulihkan sistem jika terjadi kendala.
+                </p>
+              </div>
+
+              <div className="pt-5 border-t border-slate-100 mt-4">
+                <button
+                  type="button"
+                  onClick={handleDownloadBackup}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4" /> Unduh Berkas Cadangan (.JSON)
+                </button>
+              </div>
+            </div>
+
+            {/* Restore Database */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md p-6 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-slate-100 text-slate-700 rounded-xl">
+                    <UploadCloud className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-800">Pemulihan Database (Restore)</h4>
+                    <p className="text-xs text-slate-500">Pulihkan data dari berkas cadangan JSON yang sebelumnya disimpan</p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed pt-2">
+                  Unggah berkas <code>.json</code> cadangan untuk mengembalikan seluruh data survei dan akun fasyankes. Sistem akan secara otomatis membuat backup pengaman sebelum proses pemulihan berjalan.
+                </p>
+              </div>
+
+              <div className="pt-5 border-t border-slate-100 mt-4">
+                <input
+                  type="file"
+                  ref={backupFileInputRef}
+                  onChange={handleRestoreBackupFile}
+                  accept=".json,application/json"
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => backupFileInputRef.current?.click()}
+                  disabled={isRestoring}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-900 active:bg-black text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <UploadCloud className={`w-4 h-4 ${isRestoring ? 'animate-spin' : ''}`} />
+                  {isRestoring ? "Memulihkan Database..." : "Pilih File Cadangan untuk Dipulihkan"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

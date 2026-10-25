@@ -291,12 +291,12 @@ export default function PengaturanTab({
     kota: 'Sukabumi',
     tanggalPengesahan: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
     direkturNama: 'dr. H. Ahmad Wijaya',
-    direkturGelar: 'MARS',
+    direkturGelar: '',
     direkturJabatan: 'Direktur Utama Rumah Sakit',
     direkturNipType: 'NIP',
     direkturNip: '19780512 200501 1 002',
     pjNama: 'dr. Budi Santoso',
-    pjGelar: 'Sp.KP',
+    pjGelar: '',
     pjJabatan: 'Ketua Komite Mutu & Keselamatan Pasien',
     pjNipType: 'NIP',
     pjNip: '19820315 200804 1 005',
@@ -2554,14 +2554,17 @@ CREATE POLICY "Menghapus Publik Logo" ON storage.objects FOR DELETE USING (bucke
 
                 {/* Gelar */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">
-                    Gelar Akademik / Profesi
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700">
+                      Gelar Akademik / Profesi
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-medium">Opsional</span>
+                  </div>
                   <input
                     type="text"
                     value={pengesahanForm.direkturGelar || ''}
                     onChange={(e) => setPengesahanForm(prev => ({ ...prev, direkturGelar: e.target.value }))}
-                    placeholder="Contoh: MARS / Sp.A"
+                    placeholder="Kosongkan jika tidak ada (Contoh: MARS / Sp.A)"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:bg-white focus:border-indigo-500 transition-all outline-none"
                   />
                 </div>
@@ -2646,14 +2649,17 @@ CREATE POLICY "Menghapus Publik Logo" ON storage.objects FOR DELETE USING (bucke
 
                 {/* Gelar */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700">
-                    Gelar Akademik / Profesi
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700">
+                      Gelar Akademik / Profesi
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-medium">Opsional</span>
+                  </div>
                   <input
                     type="text"
                     value={pengesahanForm.pjGelar || ''}
                     onChange={(e) => setPengesahanForm(prev => ({ ...prev, pjGelar: e.target.value }))}
-                    placeholder="Contoh: Sp.KP / S.Kep., Ns."
+                    placeholder="Kosongkan jika tidak ada (Contoh: Sp.KP / S.Kep., Ns.)"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:bg-white focus:border-emerald-500 transition-all outline-none"
                   />
                 </div>

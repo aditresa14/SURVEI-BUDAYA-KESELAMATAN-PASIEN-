@@ -2535,13 +2535,13 @@ export async function getPengesahanConfig(hospitalIdOrUsername?: string, current
     tanggalPengesahan: foundConfig?.tanggalPengesahan || defaultDate,
     
     direkturNama: foundConfig?.direkturNama || 'dr. H. Ahmad Wijaya',
-    direkturGelar: foundConfig?.direkturGelar || 'MARS',
+    direkturGelar: (foundConfig?.direkturGelar !== undefined && foundConfig?.direkturGelar !== null) ? foundConfig.direkturGelar : '',
     direkturJabatan: foundConfig?.direkturJabatan || 'Direktur Utama Rumah Sakit',
     direkturNipType: foundConfig?.direkturNipType || 'NIP',
     direkturNip: foundConfig?.direkturNip || '19780512 200501 1 002',
 
     pjNama: foundConfig?.pjNama || 'dr. Budi Santoso',
-    pjGelar: foundConfig?.pjGelar || 'Sp.KP',
+    pjGelar: (foundConfig?.pjGelar !== undefined && foundConfig?.pjGelar !== null) ? foundConfig.pjGelar : '',
     pjJabatan: foundConfig?.pjJabatan || 'Ketua Komite Mutu & Keselamatan Pasien',
     pjNipType: foundConfig?.pjNipType || 'NIP',
     pjNip: foundConfig?.pjNip || '19820315 200804 1 005',

@@ -371,8 +371,16 @@ export default function PengaturanTab({
   };
 
   useEffect(() => {
-    fetchBackupStats();
-  }, []);
+    if (role === 'admin') {
+      fetchBackupStats();
+    }
+  }, [role]);
+
+  useEffect(() => {
+    if (role !== 'admin' && activeSettingsSection === 'backup') {
+      setActiveSettingsSection('profil');
+    }
+  }, [role, activeSettingsSection]);
 
   const handleSyncGdriveNow = async () => {
     setIsSyncingGdrive(true);
@@ -1088,17 +1096,19 @@ CREATE POLICY "Menghapus Publik Banner" ON storage.objects FOR DELETE USING (buc
           <FileCheck className="w-4 h-4 text-teal-600" />
           <span>Pengaturan Halaman Pengesahan</span>
         </button>
-        <button
-          onClick={() => setActiveSettingsSection('backup')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-all border-b-2 cursor-pointer shrink-0 ${
-            activeSettingsSection === 'backup'
-              ? 'text-indigo-600 border-indigo-600 bg-indigo-50'
-              : 'text-slate-500 border-transparent hover:text-slate-850 hover:bg-slate-100'
-          }`}
-        >
-          <HardDrive className="w-4 h-4 text-blue-600" />
-          <span>Cadangan & Google Drive</span>
-        </button>
+        {role === 'admin' && (
+          <button
+            onClick={() => setActiveSettingsSection('backup')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-all border-b-2 cursor-pointer shrink-0 ${
+              activeSettingsSection === 'backup'
+                ? 'text-indigo-600 border-indigo-600 bg-indigo-50'
+                : 'text-slate-500 border-transparent hover:text-slate-850 hover:bg-slate-100'
+            }`}
+          >
+            <HardDrive className="w-4 h-4 text-blue-600" />
+            <span>Cadangan & Google Drive</span>
+          </button>
+        )}
       </div>
 
       {activeSettingsSection === 'profil' && (
@@ -2748,7 +2758,7 @@ CREATE POLICY "Menghapus Publik Logo" ON storage.objects FOR DELETE USING (bucke
       )}
 
       {/* 5. GOOGLE DRIVE & CADANGAN DATA SECTION */}
-      {activeSettingsSection === 'backup' && (
+      {role === 'admin' && activeSettingsSection === 'backup' && (
         <div className="space-y-6 animate-fadeIn">
           {/* Header Card */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md p-6">

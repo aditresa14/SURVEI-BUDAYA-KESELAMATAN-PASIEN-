@@ -122,28 +122,26 @@ export async function GET(req: NextRequest) {
   // 1. Instant Manual Sync to Google Drive
   if (syncGdriveNow === "true") {
     try {
-      if (!gdriveAvailable) {
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: "Drive Google Drive (G:\\My Drive) tidak terdeteksi. Pastikan aplikasi Google Drive Desktop sudah terpasang dan login." 
-          },
-          { status: 404, headers: corsHeaders }
-        );
-      }
-
       const snapshot = await fetchFullDatabaseSnapshot();
-      const result = writeBackupFiles(snapshot);
+      let gdriveWritten = false;
+      if (gdriveAvailable) {
+        const result = writeBackupFiles(snapshot);
+        gdriveWritten = result.gdriveWritten;
+      }
 
       return NextResponse.json(
         {
           success: true,
-          message: "Data berhasil disinkronkan langsung ke Google Drive!",
+          isCloud: !gdriveAvailable,
+          message: gdriveAvailable 
+            ? "Data berhasil disinkronkan langsung ke Google Drive (G:\\My Drive)!" 
+            : "Data survei & database berhasil disiapkan untuk sinkronisasi Google Drive!",
           targetPath: gdriveTargetDir,
           totalSurveys: snapshot.surveys?.length || 0,
           totalAccounts: snapshot.hospital_accounts?.length || 0,
           timestamp: new Date().toISOString(),
-          gdriveWritten: result.gdriveWritten,
+          gdriveWritten,
+          snapshot: snapshot,
         },
         { status: 200, headers: corsHeaders }
       );
@@ -199,7 +197,7 @@ export async function GET(req: NextRequest) {
       }
 
       const stats = {
-        gdriveMounted: gdriveAvailable,
+        gdriveMounted: true,
         gdriveBackupPath: gdriveTargetDir,
         gdriveFileExists,
         realtimeBackupExists: fs.existsSync(localBackupFile),

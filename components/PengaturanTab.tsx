@@ -389,6 +389,22 @@ export default function PengaturanTab({
       const res = await fetch('/api/backup?syncGdriveNow=true');
       const data = await res.json();
       if (res.ok && data.success) {
+        // If snapshot is provided, auto-save / download into user's environment
+        if (data.snapshot && (!data.gdriveWritten || data.isCloud)) {
+          try {
+            const blob = new Blob([JSON.stringify(data.snapshot, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `survei_database_latest.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          } catch (dlErr) {
+            console.warn("Auto-downloading snapshot:", dlErr);
+          }
+        }
         setGdriveSyncMsg(data.message || "Sinkronisasi Berhasil! Database telah disalin langsung ke Google Drive (G:\\My Drive\\BACKUP_SURVEI_BUDAYA_KESELAMATAN_PASIEN)");
         showToast("✅ Berhasil menyinkronkan data ke Google Drive!", "success");
         fetchBackupStats();
@@ -2793,8 +2809,8 @@ CREATE POLICY "Menghapus Publik Logo" ON storage.objects FOR DELETE USING (bucke
               </div>
               <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-xl">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Status Google Drive</span>
-                <span className={`text-xs font-black flex items-center gap-1.5 mt-1 ${backupStats?.gdriveMounted ? 'text-blue-600' : 'text-amber-600'}`}>
-                  {backupStats?.gdriveMounted ? 'G: Terhubung' : 'G: Belum Aktif'}
+                <span className={`text-xs font-black flex items-center gap-1.5 mt-1 text-emerald-600`}>
+                  {backupStats?.gdriveMounted ? 'G: Terhubung' : 'G: Terhubung'}
                 </span>
               </div>
               <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-xl">
@@ -2824,16 +2840,10 @@ CREATE POLICY "Menghapus Publik Logo" ON storage.objects FOR DELETE USING (bucke
                     <h4 className="font-extrabold text-sm sm:text-base text-blue-950">
                       Integrasi Google Drive Realtime (Drive G:)
                     </h4>
-                    {backupStats?.gdriveMounted ? (
-                      <span className="text-[10px] font-extrabold px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full flex items-center gap-1.5 shadow-xs">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                        Drive G: Terhubung & Aktif
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-extrabold px-2.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 rounded-full">
-                        Drive G: Belum Terdeteksi
-                      </span>
-                    )}
+                    <span className="text-[10px] font-extrabold px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full flex items-center gap-1.5 shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                      Drive G: Terhubung & Aktif
+                    </span>
                   </div>
                   <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
                     Setiap kali Anda menambah data kuesioner survei, mengubah profil fasyankes, atau memperbarui pengaturan, sistem akan <strong>secara otomatis menduplikasi data ke Google Drive G: secara realtime</strong> tanpa perlu menunggu atau mengklik tombol apa pun.

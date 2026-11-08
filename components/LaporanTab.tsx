@@ -55,6 +55,7 @@ import { computeDimensionScores, DIMENSI_INFO, DIMENSI_ITEMS, scoreToPercent } f
 import { getPengesahanConfig, PengesahanConfig, isSurveyResponse, isHospitalMatch } from '../lib/db';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas-pro';
+import { COVER_REPORT_BG } from '../lib/coverImageBg';
 
 export const isPositiveComment = (text: string): boolean => {
   if (!text || typeof text !== 'string') return false;
@@ -2134,142 +2135,90 @@ export default function LaporanTab({
           className="flex flex-col items-center gap-8 print:gap-0 font-sans leading-relaxed w-full max-w-[297mm] transition-transform duration-200"
         >
 
- {/* LEMBAR 1: COVER PAGE */}
+{/* LEMBAR 1: COVER PAGE */}
           <div className="w-full flex flex-col items-center">
             <div 
               className="word-page cover-page print-page bg-white relative overflow-hidden flex flex-col justify-between select-none"
               style={{ width: '794px', height: '1123px', minHeight: '1123px' }}
             >
-              
-               {/* BACKGROUND VECTOR GEOMETRICS (Top Right Lines + Bottom Right Diagonal Teal Polygon & Stripes) */}
-              <div className="absolute top-0 left-0 pointer-events-none z-0" style={{ width: '794px', height: '1123px' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="794" height="1123" className="w-full h-full" viewBox="0 0 800 1130" preserveAspectRatio="none" fill="none" style={{ width: '794px', height: '1123px' }}>
-                  {/* Top-Right Corner Accent Lines */}
-                  <line x1="580" y1="0" x2="800" y2="220" stroke="#007a78" strokeWidth="2.5" opacity="0.4" />
-                  <line x1="620" y1="0" x2="800" y2="180" stroke="#007a78" strokeWidth="12" opacity="0.85" />
-                  <line x1="680" y1="0" x2="800" y2="120" stroke="#007a78" strokeWidth="22" opacity="0.15" />
+              {/* Modern Hospital Architecture & Teal Ribbon Background Template */}
+              <img 
+                src={COVER_REPORT_BG} 
+                alt="Cover Report Background" 
+                className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none z-0" 
+                style={{ width: '794px', height: '1123px' }} 
+              />
 
-                  {/* Main Teal Polygon Cutting Diagonally */}
-                  {/* Layer 1: Dark Teal Shadow Base */}
-                  <path d="M 0 1130 L 0 960 L 800 250 L 800 1130 Z" fill="#005250" />
-                  
-                  {/* Layer 2: Main Deep Teal Polygon */}
-                  <path d="M 0 1130 L 0 990 L 800 280 L 800 1130 Z" fill="#007a78" />
-
-                  {/* Layer 3: Dark Accent Bottom-Right Wedge */}
-                  <path d="M 200 1130 L 800 630 L 800 1130 Z" fill="#004846" opacity="0.6" />
-
-                  {/* Parallel Diagonal Accent Stripes along the slope edge */}
-                  {/* Thick Stripe 1 */}
-                  <line x1="0" y1="945" x2="800" y2="235" stroke="#007a78" strokeWidth="18" />
-                  {/* White Gap Line */}
-                  <line x1="0" y1="922" x2="800" y2="212" stroke="#ffffff" strokeWidth="6" />
-                  {/* Thin Accent Stripe 2 */}
-                  <line x1="0" y1="906" x2="800" y2="196" stroke="#007a78" strokeWidth="4" />
-                  {/* Light/Subtle Stripe 3 */}
-                  <line x1="0" y1="875" x2="800" y2="165" stroke="#007a78" strokeWidth="2" opacity="0.5" />
-                </svg>
+              {/* TOP DYNAMIC YEAR DISPLAY */}
+              <div 
+                className="absolute z-10 select-none pointer-events-none"
+                style={{
+                  top: '73px',
+                  left: '56px',
+                }}
+              >
+                <span 
+                  className="font-black leading-none tracking-tight font-sans select-none"
+                  style={{
+                    fontSize: '84px',
+                    color: '#006E67',
+                    display: 'block',
+                    lineHeight: '1',
+                    letterSpacing: '-0.02em'
+                  }}
+                >
+                  {selectedYear === 'Semua Tahun' ? new Date().getFullYear() : selectedYear}
+                </span>
               </div>
 
-              {/* BOTTOM RIGHT OVERLAY TEXT ON TEAL AREA */}
-              <div className="absolute bottom-16 right-14 z-10 text-right text-white max-w-[550px]">
-                {/* Nama Rumah Sakit & Periode Tahun - Rata Kanan di atas "Keselamatan adalah Prioritas" */}
+              {/* BOTTOM DYNAMIC HOSPITAL NAME & PERIOD DISPLAY */}
+              <div 
+                className="absolute z-10 flex flex-col items-center justify-center text-center select-none"
+                style={{
+                  top: '830px',
+                  left: '219px',
+                  width: '540px'
+                }}
+              >
+                {/* Nama Rumah Sakit / Fasyankes (Dynamic menyesuaikan akun RS yang login) */}
                 <h4 
-                  className="font-extrabold text-white text-[36px] tracking-wide uppercase leading-tight font-sans whitespace-normal break-words"
-                  style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}
+                  className="font-black text-white uppercase tracking-wider leading-tight font-sans drop-shadow-md break-words"
+                  style={{
+                    fontSize: activeHospitalName.length > 28 ? '25px' : (activeHospitalName.length > 20 ? '29px' : '34px'),
+                    textShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                    marginBottom: '10px',
+                    maxWidth: '520px'
+                  }}
                 >
                   {activeHospitalName}
                 </h4>
-                <p 
-                  className="text-[26px] font-black uppercase tracking-[0.2em] text-white mt-1 mb-5 font-sans"
-                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}
-                >
-                  PERIODE TAHUN {selectedYear === 'Semua Tahun' ? new Date().getFullYear() : selectedYear}
-                </p>
 
-                <h5 className="font-black text-white text-[15px] tracking-wider uppercase leading-tight mt-6">
-                  KESELAMATAN ADALAH PRIORITAS
-                </h5>
-                <div className="w-12 h-[2px] bg-white/80 my-2.5 ml-auto"></div>
-                <p className="text-[11px] text-teal-50 font-light leading-relaxed">
-                  Bersama membangun budaya keselamatan pasien yang kuat, untuk pelayanan yang bermutu.
-                </p>
-              </div>
-
-              {/* FOREGROUND CONTENT (LEFT ALIGNED) */}
-              <div className="absolute top-16 left-16 right-16 z-10 flex flex-col justify-start items-start text-left">
-                
-                {/* 2026 Year Display */}
-                <h1 className="text-[84px] font-black leading-none text-[#007a78] tracking-tight font-sans" style={{ lineHeight: '1', margin: 0 }}>
-                  {selectedYear === 'Semua Tahun' ? new Date().getFullYear() : selectedYear}
-                </h1>
-
-                {/* LAPORAN */}
-                <h2 className="text-[48px] font-black leading-none text-[#007a78] tracking-tight font-sans uppercase" style={{ lineHeight: '1', margin: '4px 0 0 0' }}>
-                  LAPORAN
-                </h2>
-
-                {/* SURVEI BUDAYA KESELAMATAN PASIEN */}
-                <div className="space-y-0" style={{ marginTop: '10px' }}>
-                  <h3 className="text-[36px] font-black leading-[1.1] text-slate-950 uppercase tracking-tight font-sans" style={{ lineHeight: '1.1', margin: 0 }}>
-                    SURVEI BUDAYA
-                  </h3>
-                  <h3 className="text-[36px] font-black leading-[1.1] text-slate-950 uppercase tracking-tight font-sans" style={{ lineHeight: '1.1', margin: 0 }}>
-                    KESELAMATAN PASIEN
-                  </h3>
-                </div>
-
-                {/* Short Accent Bar */}
-                <div className="w-16 h-[4px] bg-[#007a78]" style={{ width: '64px', height: '4px', backgroundColor: '#007a78', margin: '12px 0' }}></div>
-
-                {/* Subtitle: Berdasarkan Instrumen */}
-                <p className="text-[12px] font-extrabold uppercase tracking-[0.2em] text-slate-600 font-sans" style={{ letterSpacing: '0.2em', margin: '0 0 6px 0' }}>
-                  Berdasarkan Instrumen
-                </p>
-
-                {/* Badge Pill: AHRQ SOPS® v2.0 */}
-                <div style={{ margin: '6px 0 12px 0' }}>
+                {/* Periode Tahun dengan garis aksen emas */}
+                <div className="flex items-center justify-center gap-3 w-full">
                   <div 
-                    className="inline-block bg-[#007a78] text-white font-bold text-[13px] rounded-full tracking-wider shadow-xs font-sans text-center select-none"
+                    className="h-[2.5px] rounded-full shrink-0"
                     style={{
-                      display: 'inline-block',
-                      backgroundColor: '#007a78',
-                      color: '#ffffff',
-                      height: '30px',
-                      lineHeight: '30px',
-                      padding: '0 18px',
-                      borderRadius: '15px',
-                      textAlign: 'center',
-                      verticalAlign: 'middle',
-                      boxSizing: 'border-box'
+                      width: '45px',
+                      backgroundColor: '#C5A059'
+                    }}
+                  />
+                  <span 
+                    className="font-bold text-white uppercase tracking-[0.22em] font-sans whitespace-nowrap"
+                    style={{
+                      fontSize: '18px',
+                      textShadow: '0 1px 4px rgba(0,0,0,0.35)'
                     }}
                   >
-                    AHRQ SOPS® v2.0
-                  </div>
+                    PERIODE TAHUN {selectedYear === 'Semua Tahun' ? new Date().getFullYear() : selectedYear}
+                  </span>
+                  <div 
+                    className="h-[2.5px] rounded-full shrink-0"
+                    style={{
+                      width: '45px',
+                      backgroundColor: '#C5A059'
+                    }}
+                  />
                 </div>
-
-                {/* Three Outline Icons */}
-                <div className="flex items-center gap-3.5 my-2" style={{ display: 'flex', alignItems: 'center', gap: '14px', margin: '10px 0' }}>
-                  <div 
-                    className="w-9 h-9 rounded-full border-2 border-[#007a78] text-[#007a78] flex items-center justify-center shadow-xs" 
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '50%', border: '2px solid #007a78', boxSizing: 'border-box' }}
-                  >
-                    <TrendingUp className="w-5 h-5 stroke-[2.2]" style={{ width: '20px', height: '20px', display: 'block' }} />
-                  </div>
-                  <div 
-                    className="w-9 h-9 rounded-full border-2 border-[#007a78] text-[#007a78] flex items-center justify-center shadow-xs" 
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '50%', border: '2px solid #007a78', boxSizing: 'border-box' }}
-                  >
-                    <ShieldCheck className="w-5 h-5 stroke-[2.2]" style={{ width: '20px', height: '20px', display: 'block' }} />
-                  </div>
-                  <div 
-                    className="w-9 h-9 rounded-full border-2 border-[#007a78] text-[#007a78] flex items-center justify-center shadow-xs" 
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '50%', border: '2px solid #007a78', boxSizing: 'border-box' }}
-                  >
-                    <Users className="w-5 h-5 stroke-[2.2]" style={{ width: '20px', height: '20px', display: 'block' }} />
-                  </div>
-                </div>
-
               </div>
 
             </div>
@@ -2277,7 +2226,7 @@ export default function LaporanTab({
 
 
 
-          {/* LEMBAR 3: DAFTAR ISI */}
+                    {/* LEMBAR 3: DAFTAR ISI */}
           <div className="w-full flex flex-col items-center">
             <div className="word-page print-page">
               <div>

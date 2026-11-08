@@ -2153,8 +2153,8 @@ export default function LaporanTab({
               <div 
                 className="absolute z-10 select-none pointer-events-none"
                 style={{
-                  top: '73px',
-                  left: '56px',
+                  top: '84px',
+                  left: '57px',
                 }}
               >
                 <span 
@@ -2175,8 +2175,8 @@ export default function LaporanTab({
               <div 
                 className="absolute z-10 flex flex-col items-center justify-center text-center select-none"
                 style={{
-                  top: '830px',
-                  left: '219px',
+                  top: '824px',
+                  left: '215px',
                   width: '540px'
                 }}
               >
@@ -2184,9 +2184,9 @@ export default function LaporanTab({
                 <h4 
                   className="font-black text-white uppercase tracking-wider leading-tight font-sans drop-shadow-md break-words"
                   style={{
-                    fontSize: activeHospitalName.length > 28 ? '25px' : (activeHospitalName.length > 20 ? '29px' : '34px'),
+                    fontSize: activeHospitalName.length > 28 ? '26px' : (activeHospitalName.length > 18 ? '30px' : '36px'),
                     textShadow: '0 2px 6px rgba(0,0,0,0.4)',
-                    marginBottom: '10px',
+                    marginBottom: '12px',
                     maxWidth: '520px'
                   }}
                 >
@@ -2196,9 +2196,9 @@ export default function LaporanTab({
                 {/* Periode Tahun dengan garis aksen emas */}
                 <div className="flex items-center justify-center gap-3 w-full">
                   <div 
-                    className="h-[2.5px] rounded-full shrink-0"
+                    className="h-[3.5px] rounded-full shrink-0"
                     style={{
-                      width: '45px',
+                      width: '50px',
                       backgroundColor: '#C5A059'
                     }}
                   />
@@ -2212,9 +2212,9 @@ export default function LaporanTab({
                     PERIODE TAHUN {selectedYear === 'Semua Tahun' ? new Date().getFullYear() : selectedYear}
                   </span>
                   <div 
-                    className="h-[2.5px] rounded-full shrink-0"
+                    className="h-[3.5px] rounded-full shrink-0"
                     style={{
-                      width: '45px',
+                      width: '50px',
                       backgroundColor: '#C5A059'
                     }}
                   />

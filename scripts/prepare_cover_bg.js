@@ -21,46 +21,48 @@ async function cleanPerfect() {
     buf[idx+2] = b;
   }
 
-  // 1. Clear top year '2026' to pure white
-  for (let y = 60; y <= 150; y++) {
-    for (let x = 40; x <= 300; x++) {
+  // 1. Clear top year '2026' to pure white (y: 65..170, x: 40..310)
+  for (let y = 65; y <= 170; y++) {
+    for (let x = 40; x <= 310; x++) {
       setPixel(x, y, 255, 255, 255);
     }
   }
 
-  // 2. Clear bottom text vertically with smooth interpolation and horizontal feathering
-  const yTop = 758;
-  const yBot = 855;
-  const xLeft = 215;
-  const xRight = 685;
-  const feather = 10;
+  // Helper to interpolate a vertical zone with horizontal feathering
+  function clearZone(yTop, yBot, xLeft, xRight, feather) {
+    for (let x = xLeft; x <= xRight; x++) {
+      let weight = 1;
+      if (x < xLeft + feather) {
+        weight = (x - xLeft) / feather;
+      } else if (x > xRight - feather) {
+        weight = (xRight - x) / feather;
+      }
 
-  for (let x = xLeft; x <= xRight; x++) {
-    let weight = 1;
-    if (x < xLeft + feather) {
-      weight = (x - xLeft) / feather;
-    } else if (x > xRight - feather) {
-      weight = (xRight - x) / feather;
-    }
+      const pTop = getPixel(x, yTop);
+      const pBot = getPixel(x, yBot);
 
-    const pTop = getPixel(x, yTop);
-    const pBot = getPixel(x, yBot);
+      for (let y = yTop + 1; y < yBot; y++) {
+        const t = (y - yTop) / (yBot - yTop);
+        const orig = getPixel(x, y);
 
-    for (let y = yTop + 1; y < yBot; y++) {
-      const t = (y - yTop) / (yBot - yTop);
-      const orig = getPixel(x, y);
+        const interpR = pTop[0] * (1 - t) + pBot[0] * t;
+        const interpG = pTop[1] * (1 - t) + pBot[1] * t;
+        const interpB = pTop[2] * (1 - t) + pBot[2] * t;
 
-      const interpR = pTop[0] * (1 - t) + pBot[0] * t;
-      const interpG = pTop[1] * (1 - t) + pBot[1] * t;
-      const interpB = pTop[2] * (1 - t) + pBot[2] * t;
+        const finalR = Math.round(orig[0] * (1 - weight) + interpR * weight);
+        const finalG = Math.round(orig[1] * (1 - weight) + interpG * weight);
+        const finalB = Math.round(orig[2] * (1 - weight) + interpB * weight);
 
-      const finalR = Math.round(orig[0] * (1 - weight) + interpR * weight);
-      const finalG = Math.round(orig[1] * (1 - weight) + interpG * weight);
-      const finalB = Math.round(orig[2] * (1 - weight) + interpB * weight);
-
-      setPixel(x, y, finalR, finalG, finalB);
+        setPixel(x, y, finalR, finalG, finalB);
+      }
     }
   }
+
+  // 2. Clear MEDISTRA HOSPITAL: y = 745..796, x: 190..695
+  clearZone(745, 796, 190, 695, 10);
+
+  // 3. Clear PERIODE TAHUN 2026: y = 798..838, x: 190..695
+  clearZone(798, 838, 190, 695, 10);
 
   await sharp(buf, { raw: { width, height, channels } })
     .jpeg({ quality: 98 })

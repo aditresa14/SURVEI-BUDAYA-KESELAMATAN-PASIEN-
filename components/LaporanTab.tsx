@@ -295,6 +295,21 @@ export default function LaporanTab({
     return () => { isMounted = false; };
   }, [identifier, hospitalId, namaRs]);
 
+  // Realtime update when Pengesahan is saved in PengaturanTab
+  React.useEffect(() => {
+    const handlePengesahanUpdated = (e: any) => {
+      if (e?.detail) {
+        setPengesahanConfig(e.detail);
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pengesahan_updated', handlePengesahanUpdated);
+      return () => {
+        window.removeEventListener('pengesahan_updated', handlePengesahanUpdated);
+      };
+    }
+  }, []);
+
   // SECURE REALTIME BENCHMARK FETCHING
   React.useEffect(() => {
     if (selectedBenchmarkId === 'none') {
@@ -441,7 +456,14 @@ export default function LaporanTab({
   }, [dimensionScores]);
 
   const activeHospitalName = useMemo(() => {
-    return (pengesahanConfig?.namaRs && pengesahanConfig.namaRs.trim()) || (namaRs && namaRs.trim()) || 'Rumah Sakit';
+    const rawNamaRs = (namaRs || '').trim();
+    if (rawNamaRs && rawNamaRs !== 'Semua Rumah Sakit' && rawNamaRs !== 'Administrator Pusat') {
+      if (pengesahanConfig?.namaRs && pengesahanConfig.namaRs.trim()) {
+        return pengesahanConfig.namaRs.trim();
+      }
+      return rawNamaRs;
+    }
+    return (pengesahanConfig?.namaRs && pengesahanConfig.namaRs.trim()) || rawNamaRs || 'Rumah Sakit';
   }, [pengesahanConfig?.namaRs, namaRs]);
 
   const displayYear = useMemo(() => {
@@ -5006,10 +5028,10 @@ export default function LaporanTab({
                           </div>
                           <div>
                             <p className="font-extrabold text-slate-900 underline">
-                              {pengesahanConfig?.direkturNama || 'dr. H. Ahmad Wijaya'}{pengesahanConfig?.direkturGelar && pengesahanConfig.direkturGelar.trim() && !pengesahanConfig.direkturNama.includes(pengesahanConfig.direkturGelar.trim()) ? (pengesahanConfig.direkturGelar.trim().startsWith(',') ? pengesahanConfig.direkturGelar.trim() : ", " + pengesahanConfig.direkturGelar.trim()) : ''}
+                              {pengesahanConfig?.direkturNama ? `${pengesahanConfig.direkturNama}${pengesahanConfig?.direkturGelar && pengesahanConfig.direkturGelar.trim() && !pengesahanConfig.direkturNama.includes(pengesahanConfig.direkturGelar.trim()) ? (pengesahanConfig.direkturGelar.trim().startsWith(',') ? pengesahanConfig.direkturGelar.trim() : ", " + pengesahanConfig.direkturGelar.trim()) : ''}` : '(Nama Direktur Belum Diatur)'}
                             </p>
                             <p className="text-slate-500 font-medium">
-                              {(pengesahanConfig?.direkturNipType || 'NIP') === 'ID' ? 'ID' : 'NIP'} : {(pengesahanConfig?.direkturNip || '19780512 200501 1 002').replace(/^(NIP\s*\/?\s*ID|NIP|ID)\s*[:.]\s*/i, '').trim()}
+                              {(pengesahanConfig?.direkturNipType || 'NIP') === 'ID' ? 'ID' : 'NIP'} : {pengesahanConfig?.direkturNip ? pengesahanConfig.direkturNip.replace(/^(NIP\s*\/?\s*ID|NIP|ID)\s*[:.]\s*/i, '').trim() : '-'}
                             </p>
                           </div>
                         </div>
@@ -5017,14 +5039,14 @@ export default function LaporanTab({
                         <div className="space-y-10">
                           <div>
                             <p className="font-bold text-slate-800">Disusun oleh,</p>
-                            <p className="font-bold text-slate-900">{pengesahanConfig?.pjJabatan || 'Ketua Komite Mutu & Keselamatan Pasien'}</p>
+                            <p className="font-bold text-slate-900">{pengesahanConfig?.pjJabatan || 'Ketua Tim Mutu'}</p>
                           </div>
                           <div>
                             <p className="font-extrabold text-slate-900 underline">
-                              {pengesahanConfig?.pjNama || 'dr. Budi Santoso'}{pengesahanConfig?.pjGelar && pengesahanConfig.pjGelar.trim() && !pengesahanConfig.pjNama.includes(pengesahanConfig.pjGelar.trim()) ? (pengesahanConfig.pjGelar.trim().startsWith(',') ? pengesahanConfig.pjGelar.trim() : ", " + pengesahanConfig.pjGelar.trim()) : ''}
+                              {pengesahanConfig?.pjNama ? `${pengesahanConfig.pjNama}${pengesahanConfig?.pjGelar && pengesahanConfig.pjGelar.trim() && !pengesahanConfig.pjNama.includes(pengesahanConfig.pjGelar.trim()) ? (pengesahanConfig.pjGelar.trim().startsWith(',') ? pengesahanConfig.pjGelar.trim() : ", " + pengesahanConfig.pjGelar.trim()) : ''}` : '(Nama Penanggung Jawab Belum Diatur)'}
                             </p>
                             <p className="text-slate-500 font-medium">
-                              {(pengesahanConfig?.pjNipType || 'NIP') === 'ID' ? 'ID' : 'NIP'} : {(pengesahanConfig?.pjNip || '19820315 200804 1 005').replace(/^(NIP\s*\/?\s*ID|NIP|ID)\s*[:.]\s*/i, '').trim()}
+                              {(pengesahanConfig?.pjNipType || 'NIP') === 'ID' ? 'ID' : 'NIP'} : {pengesahanConfig?.pjNip ? pengesahanConfig.pjNip.replace(/^(NIP\s*\/?\s*ID|NIP|ID)\s*[:.]\s*/i, '').trim() : '-'}
                             </p>
                           </div>
                         </div>

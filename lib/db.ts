@@ -1772,27 +1772,75 @@ export interface MasterPosisiConfig {
   customCategories?: string[];
 }
 
-export async function getMasterPosisiConfig(rsName: string): Promise<MasterPosisiConfig> {
-  const supabase = getSupabaseClient();
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('ahrq_surveys')
-        .select('dimensi_scores')
-        .eq('id', `MASTER_POSISI_${rsName}`)
-        .single();
-        
-      if (!error && data && data.dimensi_scores) {
-        const scores = data.dimensi_scores as any;
-        const positions = Array.isArray(scores.positions) ? (scores.positions as PosisiStaff[]) : DEFAULT_STAFF_POSITIONS;
-        const customCategories = Array.isArray(scores.customCategories) ? (scores.customCategories as string[]) : [];
-        return { positions, customCategories };
-      }
-    } catch (e) {
-      console.error("Failed to get master posisi config", e);
+export const LOCAL_MASTER_POSISI_KEY_PREFIX = 'ahrq_master_posisi_';
+
+export function getMasterPosisiConfigSync(rsName?: string): MasterPosisiConfig {
+  const cleanRs = (rsName || '').toLowerCase().trim();
+  const normRs = normalizeHospitalKey(rsName);
+  if (typeof window !== 'undefined') {
+    const candidates = [cleanRs, normRs, rsName || ''].filter(Boolean);
+    for (const cand of candidates) {
+      try {
+        const stored = localStorage.getItem(`${LOCAL_MASTER_POSISI_KEY_PREFIX}${cand}`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && Array.isArray(parsed.positions)) {
+            return {
+              positions: parsed.positions,
+              customCategories: Array.isArray(parsed.customCategories) ? parsed.customCategories : []
+            };
+          }
+        }
+      } catch {}
     }
   }
   return { positions: DEFAULT_STAFF_POSITIONS, customCategories: [] };
+}
+
+export async function getMasterPosisiConfig(rsName: string): Promise<MasterPosisiConfig> {
+  const localSync = getMasterPosisiConfigSync(rsName);
+  const cleanRs = (rsName || '').toLowerCase().trim();
+  const normRs = normalizeHospitalKey(rsName);
+  const supabase = getSupabaseClient();
+  if (!supabase || !rsName) {
+    return localSync;
+  }
+
+  try {
+    const fetchPromise = (async (): Promise<MasterPosisiConfig | null> => {
+      try {
+        const { data, error } = await supabase
+          .from('ahrq_surveys')
+          .select('dimensi_scores')
+          .eq('id', `MASTER_POSISI_${rsName}`)
+          .single();
+          
+        if (!error && data && data.dimensi_scores) {
+          const scores = data.dimensi_scores as any;
+          const positions = Array.isArray(scores.positions) ? (scores.positions as PosisiStaff[]) : DEFAULT_STAFF_POSITIONS;
+          const customCategories = Array.isArray(scores.customCategories) ? (scores.customCategories as string[]) : [];
+          return { positions, customCategories };
+        }
+      } catch (e) {
+        console.warn("Failed to get master posisi config from Supabase", e);
+      }
+      return null;
+    })();
+
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
+    const result = await Promise.race([fetchPromise, timeoutPromise]);
+    if (result && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`${LOCAL_MASTER_POSISI_KEY_PREFIX}${cleanRs}`, JSON.stringify(result));
+        if (normRs) localStorage.setItem(`${LOCAL_MASTER_POSISI_KEY_PREFIX}${normRs}`, JSON.stringify(result));
+      } catch {}
+      return result;
+    }
+  } catch (err) {
+    console.warn("Race master posisi error:", err);
+  }
+
+  return localSync;
 }
 
 export async function getMasterPosisi(rsName: string): Promise<PosisiStaff[]> {
@@ -1801,36 +1849,58 @@ export async function getMasterPosisi(rsName: string): Promise<PosisiStaff[]> {
 }
 
 export async function saveMasterPosisi(rsName: string, positions: PosisiStaff[], customCategories?: string[]): Promise<void> {
-  const supabase = getSupabaseClient();
-  if (supabase) {
+  const cleanRs = (rsName || '').toLowerCase().trim();
+  const normRs = normalizeHospitalKey(rsName);
+  const payload = {
+    positions,
+    customCategories: customCategories || []
+  };
+
+  // 1. Immediately cache to localStorage
+  if (typeof window !== 'undefined') {
     try {
-      const { data: existing } = await supabase.from('ahrq_surveys').select('id, dimensi_scores').eq('id', `MASTER_POSISI_${rsName}`).single();
-      
-      let finalCats = customCategories;
-      if (!finalCats && existing && existing.dimensi_scores && Array.isArray((existing.dimensi_scores as any).customCategories)) {
-        finalCats = (existing.dimensi_scores as any).customCategories;
-      }
+      localStorage.setItem(`${LOCAL_MASTER_POSISI_KEY_PREFIX}${cleanRs}`, JSON.stringify(payload));
+      if (normRs) localStorage.setItem(`${LOCAL_MASTER_POSISI_KEY_PREFIX}${normRs}`, JSON.stringify(payload));
+    } catch {}
+  }
 
-      const payload = {
-        positions,
-        customCategories: finalCats || []
-      };
+  // 2. Save to Supabase with safety timeout
+  const supabase = getSupabaseClient();
+  if (supabase && rsName) {
+    try {
+      const saveTask = (async () => {
+        try {
+          const { data: existing } = await supabase.from('ahrq_surveys').select('id, dimensi_scores').eq('id', `MASTER_POSISI_${rsName}`).single();
+          let finalCats = customCategories;
+          if (!finalCats && existing && existing.dimensi_scores && Array.isArray((existing.dimensi_scores as any).customCategories)) {
+            finalCats = (existing.dimensi_scores as any).customCategories;
+          }
 
-      if (existing) {
-        await supabase.from('ahrq_surveys').update({ dimensi_scores: payload }).eq('id', `MASTER_POSISI_${rsName}`);
-      } else {
-        await supabase.from('ahrq_surveys').insert([{
-          id: `MASTER_POSISI_${rsName}`,
-          nama_rs: '_MASTER_CONFIG_',
-          unit_kerja: rsName,
-          jumlah_responden: 0,
-          tanggal_input: new Date().toISOString(),
-          dimensi_scores: payload
-        }]);
-      }
-    } catch (e) {
-      console.error("Failed to save master posisi", e);
-    }
+          const finalPayload = {
+            positions,
+            customCategories: finalCats || []
+          };
+
+          if (existing) {
+            await supabase.from('ahrq_surveys').update({ dimensi_scores: finalPayload }).eq('id', `MASTER_POSISI_${rsName}`);
+          } else {
+            await supabase.from('ahrq_surveys').insert([{
+              id: `MASTER_POSISI_${rsName}`,
+              nama_rs: '_MASTER_CONFIG_',
+              unit_kerja: rsName,
+              jumlah_responden: 0,
+              tanggal_input: new Date().toISOString(),
+              dimensi_scores: finalPayload
+            }]);
+          }
+        } catch (e) {
+          console.warn("Failed to save master posisi to Supabase", e);
+        }
+      })();
+
+      const timeoutPromise = new Promise(r => setTimeout(r, 2000));
+      await Promise.race([saveTask, timeoutPromise]);
+    } catch {}
   }
 }
 
@@ -1959,27 +2029,75 @@ export interface MasterUnitConfig {
   customCategories?: string[];
 }
 
-export async function getMasterUnitConfig(rsName: string): Promise<MasterUnitConfig> {
-  const supabase = getSupabaseClient();
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('ahrq_surveys')
-        .select('dimensi_scores')
-        .eq('id', `MASTER_UNIT_${rsName}`)
-        .single();
-        
-      if (!error && data && data.dimensi_scores) {
-        const scores = data.dimensi_scores as any;
-        const units = Array.isArray(scores.units) ? (scores.units as UnitKerja[]) : DEFAULT_UNIT_KERJA;
-        const customCategories = Array.isArray(scores.customCategories) ? (scores.customCategories as string[]) : [];
-        return { units, customCategories };
-      }
-    } catch (e) {
-      console.error("Failed to get master unit config", e);
+export const LOCAL_MASTER_UNIT_KEY_PREFIX = 'ahrq_master_unit_';
+
+export function getMasterUnitConfigSync(rsName?: string): MasterUnitConfig {
+  const cleanRs = (rsName || '').toLowerCase().trim();
+  const normRs = normalizeHospitalKey(rsName);
+  if (typeof window !== 'undefined') {
+    const candidates = [cleanRs, normRs, rsName || ''].filter(Boolean);
+    for (const cand of candidates) {
+      try {
+        const stored = localStorage.getItem(`${LOCAL_MASTER_UNIT_KEY_PREFIX}${cand}`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && Array.isArray(parsed.units)) {
+            return {
+              units: parsed.units,
+              customCategories: Array.isArray(parsed.customCategories) ? parsed.customCategories : []
+            };
+          }
+        }
+      } catch {}
     }
   }
   return { units: DEFAULT_UNIT_KERJA, customCategories: [] };
+}
+
+export async function getMasterUnitConfig(rsName: string): Promise<MasterUnitConfig> {
+  const localSync = getMasterUnitConfigSync(rsName);
+  const cleanRs = (rsName || '').toLowerCase().trim();
+  const normRs = normalizeHospitalKey(rsName);
+  const supabase = getSupabaseClient();
+  if (!supabase || !rsName) {
+    return localSync;
+  }
+
+  try {
+    const fetchPromise = (async (): Promise<MasterUnitConfig | null> => {
+      try {
+        const { data, error } = await supabase
+          .from('ahrq_surveys')
+          .select('dimensi_scores')
+          .eq('id', `MASTER_UNIT_${rsName}`)
+          .single();
+          
+        if (!error && data && data.dimensi_scores) {
+          const scores = data.dimensi_scores as any;
+          const units = Array.isArray(scores.units) ? (scores.units as UnitKerja[]) : DEFAULT_UNIT_KERJA;
+          const customCategories = Array.isArray(scores.customCategories) ? (scores.customCategories as string[]) : [];
+          return { units, customCategories };
+        }
+      } catch (e) {
+        console.warn("Failed to get master unit config from Supabase", e);
+      }
+      return null;
+    })();
+
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
+    const result = await Promise.race([fetchPromise, timeoutPromise]);
+    if (result && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`${LOCAL_MASTER_UNIT_KEY_PREFIX}${cleanRs}`, JSON.stringify(result));
+        if (normRs) localStorage.setItem(`${LOCAL_MASTER_UNIT_KEY_PREFIX}${normRs}`, JSON.stringify(result));
+      } catch {}
+      return result;
+    }
+  } catch (err) {
+    console.warn("Race master unit error:", err);
+  }
+
+  return localSync;
 }
 
 export async function getMasterUnit(rsName: string): Promise<UnitKerja[]> {
@@ -1988,36 +2106,58 @@ export async function getMasterUnit(rsName: string): Promise<UnitKerja[]> {
 }
 
 export async function saveMasterUnit(rsName: string, units: UnitKerja[], customCategories?: string[]): Promise<void> {
-  const supabase = getSupabaseClient();
-  if (supabase) {
+  const cleanRs = (rsName || '').toLowerCase().trim();
+  const normRs = normalizeHospitalKey(rsName);
+  const payload = {
+    units,
+    customCategories: customCategories || []
+  };
+
+  // 1. Immediately cache to localStorage
+  if (typeof window !== 'undefined') {
     try {
-      const { data: existing } = await supabase.from('ahrq_surveys').select('id, dimensi_scores').eq('id', `MASTER_UNIT_${rsName}`).single();
-      
-      let finalCats = customCategories;
-      if (!finalCats && existing && existing.dimensi_scores && Array.isArray((existing.dimensi_scores as any).customCategories)) {
-        finalCats = (existing.dimensi_scores as any).customCategories;
-      }
+      localStorage.setItem(`${LOCAL_MASTER_UNIT_KEY_PREFIX}${cleanRs}`, JSON.stringify(payload));
+      if (normRs) localStorage.setItem(`${LOCAL_MASTER_UNIT_KEY_PREFIX}${normRs}`, JSON.stringify(payload));
+    } catch {}
+  }
 
-      const payload = {
-        units,
-        customCategories: finalCats || []
-      };
+  // 2. Save to Supabase with safety timeout
+  const supabase = getSupabaseClient();
+  if (supabase && rsName) {
+    try {
+      const saveTask = (async () => {
+        try {
+          const { data: existing } = await supabase.from('ahrq_surveys').select('id, dimensi_scores').eq('id', `MASTER_UNIT_${rsName}`).single();
+          let finalCats = customCategories;
+          if (!finalCats && existing && existing.dimensi_scores && Array.isArray((existing.dimensi_scores as any).customCategories)) {
+            finalCats = (existing.dimensi_scores as any).customCategories;
+          }
 
-      if (existing) {
-        await supabase.from('ahrq_surveys').update({ dimensi_scores: payload }).eq('id', `MASTER_UNIT_${rsName}`);
-      } else {
-        await supabase.from('ahrq_surveys').insert([{
-          id: `MASTER_UNIT_${rsName}`,
-          nama_rs: '_MASTER_CONFIG_',
-          unit_kerja: rsName,
-          jumlah_responden: 0,
-          tanggal_input: new Date().toISOString(),
-          dimensi_scores: payload
-        }]);
-      }
-    } catch (e) {
-      console.error("Failed to save master unit", e);
-    }
+          const finalPayload = {
+            units,
+            customCategories: finalCats || []
+          };
+
+          if (existing) {
+            await supabase.from('ahrq_surveys').update({ dimensi_scores: finalPayload }).eq('id', `MASTER_UNIT_${rsName}`);
+          } else {
+            await supabase.from('ahrq_surveys').insert([{
+              id: `MASTER_UNIT_${rsName}`,
+              nama_rs: '_MASTER_CONFIG_',
+              unit_kerja: rsName,
+              jumlah_responden: 0,
+              tanggal_input: new Date().toISOString(),
+              dimensi_scores: finalPayload
+            }]);
+          }
+        } catch (e) {
+          console.warn("Failed to save master unit to Supabase", e);
+        }
+      })();
+
+      const timeoutPromise = new Promise(r => setTimeout(r, 2000));
+      await Promise.race([saveTask, timeoutPromise]);
+    } catch {}
   }
 }
 
@@ -2480,122 +2620,102 @@ export function getPengesahanConfigSync(hospitalIdOrUsername?: string, currentNa
   const cleanId = rawId.toLowerCase();
   const rawRs = (currentNamaRs || '').trim();
   const cleanRs = rawRs.toLowerCase();
+  const normRs = normalizeHospitalKey(rawRs);
+
+  // Clean any legacy global key from localStorage so it never contaminates other accounts
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}global`);
+    } catch {}
+  }
 
   let foundConfig: PengesahanConfig | null = null;
-  let isSpecific = false;
 
-  // 1. Check in-memory cached accounts (or stale accounts fallback)
+  // 1. Check in-memory cached accounts
   const accounts = getCachedAccountsSync() || [];
   const matchedAcc = accounts.find((a: any) => {
     if (!a) return false;
     const aId = (a.id || '').toLowerCase();
     const aUser = (a.username || '').toLowerCase();
     const aRs = (a.namaRs || '').toLowerCase();
+    const aNorm = normalizeHospitalKey(a.namaRs);
     return (
       (cleanId && (aId === cleanId || aUser === cleanId || aRs === cleanId)) ||
-      (cleanRs && aRs === cleanRs)
+      (cleanRs && (aRs === cleanRs || (normRs && aNorm === normRs)))
     );
   });
 
   if (matchedAcc && matchedAcc.pengesahan_config) {
     const raw = matchedAcc.pengesahan_config;
-    foundConfig = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    if (foundConfig && (foundConfig.direkturNama || foundConfig.pjNama || foundConfig.namaRs)) {
-      isSpecific = true;
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (parsed && (parsed.direkturNama || parsed.pjNama || parsed.namaRs)) {
+      foundConfig = parsed;
     }
   }
 
-  // 2. Check localStorage candidates
+  // 2. Check localStorage candidate keys strictly matching this hospital
   if (!foundConfig && typeof window !== 'undefined') {
     const candidates: string[] = [];
     if (rawId) candidates.push(rawId, cleanId);
     if (rawRs) candidates.push(rawRs, cleanRs);
+    if (normRs) candidates.push(normRs);
     if (matchedAcc) {
       if (matchedAcc.id) candidates.push(matchedAcc.id, matchedAcc.id.toLowerCase());
       if (matchedAcc.username) candidates.push(matchedAcc.username, matchedAcc.username.toLowerCase());
-      if (matchedAcc.namaRs) candidates.push(matchedAcc.namaRs, matchedAcc.namaRs.toLowerCase());
+      if (matchedAcc.namaRs) {
+        candidates.push(matchedAcc.namaRs, matchedAcc.namaRs.toLowerCase());
+        const normAcc = normalizeHospitalKey(matchedAcc.namaRs);
+        if (normAcc) candidates.push(normAcc);
+      }
     }
 
-    // Try each candidate first
     for (const cand of candidates) {
       if (!cand || cand === 'default' || cand === 'global' || cand === 'all') continue;
       try {
         const stored = localStorage.getItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${cand}`);
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (parsed && (parsed.direkturNama || parsed.pjNama || parsed.namaRs)) {
-            foundConfig = parsed;
-            isSpecific = true;
-            break;
+          if (parsed && typeof parsed === 'object') {
+            const cfgNorm = normalizeHospitalKey(parsed.namaRs);
+            if (!normRs || !cfgNorm || cfgNorm === normRs || parsed.namaRs?.toLowerCase() === cleanRs) {
+              foundConfig = parsed;
+              break;
+            }
           }
         }
-      } catch (e) {
-        // ignore parse error
-      }
+      } catch {}
     }
 
-    // 3. Scan all localStorage keys starting with LOCAL_PENGESAHAN_KEY_PREFIX
-    if (!foundConfig) {
+    // 3. Scan localStorage keys for strict match by hospital name
+    if (!foundConfig && (cleanRs || cleanId)) {
       try {
-        const allMatchingConfigs: Array<{ key: string; cfg: PengesahanConfig }> = [];
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
-          if (key && key.startsWith(LOCAL_PENGESAHAN_KEY_PREFIX)) {
+          if (key && key.startsWith(LOCAL_PENGESAHAN_KEY_PREFIX) && !key.endsWith('global')) {
             const raw = localStorage.getItem(key);
             if (raw) {
               try {
                 const parsed = JSON.parse(raw);
-                if (parsed && typeof parsed === 'object') {
-                  allMatchingConfigs.push({ key, cfg: parsed });
+                if (parsed && typeof parsed === 'object' && parsed.namaRs) {
+                  const cfgNorm = normalizeHospitalKey(parsed.namaRs);
+                  const cfgLower = parsed.namaRs.toLowerCase().trim();
+                  if (
+                    (normRs && cfgNorm && cfgNorm === normRs) ||
+                    (cleanRs && cfgLower === cleanRs)
+                  ) {
+                    foundConfig = parsed;
+                    break;
+                  }
                 }
               } catch {}
             }
           }
         }
-
-        // Match by hospital name inside the JSON
-        if (cleanRs || cleanId) {
-          const matchByName = allMatchingConfigs.find(item => {
-            const cfgName = (item.cfg.namaRs || '').toLowerCase().trim();
-            return (
-              (cleanRs && (cfgName === cleanRs || cfgName.includes(cleanRs) || cleanRs.includes(cfgName))) ||
-              (cleanId && (cfgName === cleanId || cfgName.includes(cleanId) || cleanId.includes(cfgName)))
-            );
-          });
-          if (matchByName) {
-            foundConfig = matchByName.cfg;
-            isSpecific = true;
-          }
-        }
-
-        // 4. If still not found, check global key or default
-        if (!foundConfig) {
-          const globalStored = localStorage.getItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}global`);
-          if (globalStored) {
-            try {
-              foundConfig = JSON.parse(globalStored);
-            } catch {}
-          }
-        }
-
-        // 5. If still not found, check any custom config in localStorage
-        if (!foundConfig && allMatchingConfigs.length > 0) {
-          const nonDefault = allMatchingConfigs.find(c => 
-            c.cfg.direkturNama && c.cfg.direkturNama !== 'dr. H. Ahmad Wijaya'
-          );
-          if (nonDefault) {
-            foundConfig = nonDefault.cfg;
-          } else {
-            foundConfig = allMatchingConfigs[0].cfg;
-          }
-        }
-      } catch (e) {
-        console.warn("Failed scanning localStorage for pengesahan:", e);
-      }
+      } catch {}
     }
   }
 
-  // Derive hospital name
+  // Derive target hospital name
   let targetRsName = rawRs;
   if (!targetRsName && matchedAcc?.namaRs) {
     targetRsName = matchedAcc.namaRs;
@@ -2608,67 +2728,83 @@ export function getPengesahanConfigSync(hospitalIdOrUsername?: string, currentNa
   }
 
   return {
-    namaRs: targetRsName,
+    namaRs: (foundConfig?.namaRs && foundConfig.namaRs.trim()) || targetRsName,
     logoRs: foundConfig?.logoRs || '',
     kota: foundConfig?.kota || 'Sukabumi',
     tanggalPengesahan: foundConfig?.tanggalPengesahan || defaultDate,
     
-    direkturNama: foundConfig?.direkturNama || 'dr. H. Ahmad Wijaya',
+    direkturNama: foundConfig?.direkturNama || '',
     direkturGelar: (foundConfig?.direkturGelar !== undefined && foundConfig?.direkturGelar !== null) ? foundConfig.direkturGelar : '',
     direkturJabatan: foundConfig?.direkturJabatan || 'Direktur Utama Rumah Sakit',
     direkturNipType: foundConfig?.direkturNipType || 'NIP',
-    direkturNip: foundConfig?.direkturNip || '19780512 200501 1 002',
+    direkturNip: foundConfig?.direkturNip || '',
 
-    pjNama: foundConfig?.pjNama || 'dr. Budi Santoso',
+    pjNama: foundConfig?.pjNama || '',
     pjGelar: (foundConfig?.pjGelar !== undefined && foundConfig?.pjGelar !== null) ? foundConfig.pjGelar : '',
     pjJabatan: foundConfig?.pjJabatan || 'Ketua Komite Mutu & Keselamatan Pasien',
     pjNipType: foundConfig?.pjNipType || 'NIP',
-    pjNip: foundConfig?.pjNip || '19820315 200804 1 005',
+    pjNip: foundConfig?.pjNip || '',
   };
 }
 
 export async function getPengesahanConfig(hospitalIdOrUsername?: string, currentNamaRs?: string): Promise<PengesahanConfig> {
-  // 1. Immediately read local config (0ms non-blocking)
   const localConfig = getPengesahanConfigSync(hospitalIdOrUsername, currentNamaRs);
-
   const identifier = (hospitalIdOrUsername || 'default').toLowerCase().trim();
   const supabase = getSupabaseClient();
   if (!supabase || !identifier || identifier === 'default' || identifier === 'all') {
     return localConfig;
   }
 
-  // 2. Wrap remote query with strict 1500ms timeout
+  const normTarget = normalizeHospitalKey(currentNamaRs || hospitalIdOrUsername);
+  const cleanRs = (currentNamaRs || '').toLowerCase().trim();
+
   const remotePromise = (async (): Promise<PengesahanConfig | null> => {
     try {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(hospitalIdOrUsername || '');
-      let query = supabase.from('hospital_accounts').select('id, username, nama_rs, pengesahan_config');
-      if (isUuid) {
-        query = query.eq('id', hospitalIdOrUsername);
-      } else if (hospitalIdOrUsername && hospitalIdOrUsername !== 'global') {
-        query = query.ilike('username', hospitalIdOrUsername);
-      } else if (currentNamaRs) {
-        query = query.ilike('nama_rs', currentNamaRs);
-      }
-
-      const { data: accData, error: accErr } = await query.limit(1);
-      if (!accErr && accData && accData.length > 0 && accData[0].pengesahan_config) {
-        const parsed = typeof accData[0].pengesahan_config === 'string'
-          ? JSON.parse(accData[0].pengesahan_config)
-          : accData[0].pengesahan_config;
-        if (parsed) return parsed;
-      }
-
-      // Check ahrq_surveys fallback table
-      const { data: surveyRows } = await supabase
+      // 1. Check ahrq_surveys where unit_kerja = 'PENGESAHAN_CONFIG'
+      const { data: rows, error: sErr } = await supabase
         .from('ahrq_surveys')
-        .select('dimensi_scores')
-        .eq('id', `PENGESAHAN_${identifier}`)
-        .order('created_at', { ascending: false, nullsFirst: false })
-        .limit(1);
+        .select('id, nama_rs, dimensi_scores')
+        .eq('unit_kerja', 'PENGESAHAN_CONFIG')
+        .limit(50);
 
-      if (surveyRows && surveyRows.length > 0 && (surveyRows[0].dimensi_scores as any)?.pengesahan) {
-        return (surveyRows[0].dimensi_scores as any).pengesahan;
+      if (!sErr && rows && rows.length > 0) {
+        const matchedRow = rows.find(r => {
+          if (!r) return false;
+          const rId = (r.id || '').toLowerCase();
+          const rNama = (r.nama_rs || '').toLowerCase();
+          const rNorm = normalizeHospitalKey(r.nama_rs);
+          return (
+            rId === `pengesahan_${identifier}` ||
+            (normTarget && rId === `pengesahan_${normTarget}`) ||
+            (normTarget && rNorm && rNorm === normTarget) ||
+            (cleanRs && rNama === cleanRs)
+          );
+        });
+
+        if (matchedRow && (matchedRow.dimensi_scores as any)?.pengesahan) {
+          return (matchedRow.dimensi_scores as any).pengesahan;
+        }
       }
+
+      // 2. Fallback check hospital_accounts if column exists
+      try {
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(hospitalIdOrUsername || '');
+        let query = supabase.from('hospital_accounts').select('id, username, nama_rs, pengesahan_config');
+        if (isUuid) {
+          query = query.eq('id', hospitalIdOrUsername);
+        } else if (hospitalIdOrUsername && hospitalIdOrUsername !== 'global') {
+          query = query.ilike('username', hospitalIdOrUsername);
+        } else if (currentNamaRs) {
+          query = query.ilike('nama_rs', currentNamaRs);
+        }
+        const { data: accData } = await query.limit(1);
+        if (accData && accData.length > 0 && accData[0].pengesahan_config) {
+          const parsed = typeof accData[0].pengesahan_config === 'string'
+            ? JSON.parse(accData[0].pengesahan_config)
+            : accData[0].pengesahan_config;
+          if (parsed) return parsed;
+        }
+      } catch {}
     } catch (e) {
       console.warn("Remote pengesahan fetch warning:", e);
     }
@@ -2682,8 +2818,15 @@ export async function getPengesahanConfig(hospitalIdOrUsername?: string, current
     if (remoteResult && typeof window !== 'undefined') {
       try {
         localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${identifier}`, JSON.stringify(remoteResult));
+        if (normTarget) {
+          localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${normTarget}`, JSON.stringify(remoteResult));
+        }
         if (remoteResult.namaRs) {
           localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${remoteResult.namaRs.toLowerCase().trim()}`, JSON.stringify(remoteResult));
+          const normRemote = normalizeHospitalKey(remoteResult.namaRs);
+          if (normRemote) {
+            localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${normRemote}`, JSON.stringify(remoteResult));
+          }
         }
       } catch {}
       return {
@@ -2714,13 +2857,17 @@ export async function savePengesahanConfig(hospitalIdOrUsername: string, config:
   const rawId = (hospitalIdOrUsername || 'default').trim();
   const cleanId = rawId.toLowerCase();
   const nowIso = new Date().toISOString();
+  const normKey = normalizeHospitalKey(config.namaRs || currentNamaRs || cleanId);
 
-  // 1. Immediately save to localStorage across all relevant keys
+  // 1. Immediately save to localStorage across all relevant specific keys
   if (typeof window !== 'undefined' && cleanId !== 'default') {
     try {
       localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${cleanId}`, JSON.stringify(config));
       if (rawId !== cleanId) {
         localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${rawId}`, JSON.stringify(config));
+      }
+      if (normKey) {
+        localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${normKey}`, JSON.stringify(config));
       }
       if (config.namaRs) {
         localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${config.namaRs.toLowerCase().trim()}`, JSON.stringify(config));
@@ -2728,22 +2875,36 @@ export async function savePengesahanConfig(hospitalIdOrUsername: string, config:
       }
       if (currentNamaRs) {
         localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${currentNamaRs.toLowerCase().trim()}`, JSON.stringify(config));
+        const normCurrent = normalizeHospitalKey(currentNamaRs);
+        if (normCurrent) {
+          localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${normCurrent}`, JSON.stringify(config));
+        }
       }
-      localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}global`, JSON.stringify(config));
+      // Never store global key to prevent cross-contamination
+      localStorage.removeItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}global`);
     } catch (e) {
       console.warn("Error saving pengesahan config to localStorage:", e);
     }
   }
 
-  // 2. Update in-memory account cache if available
+  // 2. Broadcast event so open tabs immediately get the updated config
+  if (typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(new CustomEvent('pengesahan_updated', { detail: config }));
+    } catch {}
+  }
+
+  // 3. Update in-memory account cache if available
   const accounts = getCachedAccountsSync() || [];
   const matchedAcc = accounts.find((a: any) => {
     if (!a) return false;
     const aId = (a.id || '').toLowerCase();
     const aUser = (a.username || '').toLowerCase();
     const aRs = (a.namaRs || '').toLowerCase();
+    const aNorm = normalizeHospitalKey(a.namaRs);
     return (
       (cleanId && (aId === cleanId || aUser === cleanId || aRs === cleanId)) ||
+      (normKey && aNorm === normKey) ||
       (config.namaRs && aRs === config.namaRs.toLowerCase().trim())
     );
   });
@@ -2757,10 +2918,39 @@ export async function savePengesahanConfig(hospitalIdOrUsername: string, config:
     }
   }
 
-  // 3. Save to Supabase with safety timeout so network hangs never block user
+  // 4. Save to Supabase (robust & independent)
   const supabase = getSupabaseClient();
-  if (supabase && cleanId) {
+  if (supabase && cleanId && cleanId !== 'default') {
     const savePromise = (async () => {
+      // A) Primary: Upsert to ahrq_surveys fallback table (guaranteed schema stability)
+      try {
+        const rowId = `PENGESAHAN_${cleanId}`;
+        await supabase.from('ahrq_surveys').upsert({
+          id: rowId,
+          nama_rs: config.namaRs || currentNamaRs || '_CONFIG_',
+          unit_kerja: 'PENGESAHAN_CONFIG',
+          jumlah_responden: 0,
+          tanggal_input: nowIso.split('T')[0],
+          created_at: nowIso,
+          dimensi_scores: { pengesahan: config }
+        });
+
+        if (normKey && `PENGESAHAN_${normKey}` !== rowId) {
+          await supabase.from('ahrq_surveys').upsert({
+            id: `PENGESAHAN_${normKey}`,
+            nama_rs: config.namaRs || currentNamaRs || '_CONFIG_',
+            unit_kerja: 'PENGESAHAN_CONFIG',
+            jumlah_responden: 0,
+            tanggal_input: nowIso.split('T')[0],
+            created_at: nowIso,
+            dimensi_scores: { pengesahan: config }
+          });
+        }
+      } catch (errSurveys) {
+        console.warn("ahrq_surveys pengesahan upsert error:", errSurveys);
+      }
+
+      // B) Secondary: Update hospital_accounts if column exists
       try {
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
         let updateQuery = supabase.from('hospital_accounts').update({
@@ -2775,23 +2965,12 @@ export async function savePengesahanConfig(hospitalIdOrUsername: string, config:
         } else if (config.namaRs) {
           await updateQuery.ilike('nama_rs', config.namaRs);
         }
-
-        // Upsert to ahrq_surveys fallback table
-        await supabase.from('ahrq_surveys').upsert({
-          id: `PENGESAHAN_${cleanId}`,
-          nama_rs: config.namaRs || '_CONFIG_',
-          unit_kerja: 'PENGESAHAN_CONFIG',
-          jumlah_responden: 0,
-          tanggal_input: nowIso.split('T')[0],
-          created_at: nowIso,
-          dimensi_scores: { pengesahan: config }
-        });
-      } catch (e) {
-        console.warn("Error saving pengesahan config to Supabase:", e);
+      } catch (errAcc) {
+        // Safe to ignore if column does not exist
       }
     })();
 
-    const timeoutPromise = new Promise(r => setTimeout(r, 3000));
+    const timeoutPromise = new Promise(r => setTimeout(r, 2500));
     try {
       await Promise.race([savePromise, timeoutPromise]);
     } catch {}

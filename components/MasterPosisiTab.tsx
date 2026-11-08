@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Users, Search, Plus, Trash2, Edit2, Check, X, ShieldAlert, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
-import { PosisiStaff, getMasterPosisiConfig, saveMasterPosisi, SurveyData } from '../lib/db';
+import { PosisiStaff, getMasterPosisiConfig, getMasterPosisiConfigSync, saveMasterPosisi, SurveyData } from '../lib/db';
 
 interface MasterPosisiTabProps {
   rsName: string;
@@ -20,9 +20,9 @@ const PRESET_POSISI_CATEGORIES = [
 ];
 
 export default function MasterPosisiTab({ rsName, surveys = [] }: MasterPosisiTabProps) {
-  const [positions, setPositions] = useState<PosisiStaff[]>([]);
-  const [customCategories, setCustomCategories] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [positions, setPositions] = useState<PosisiStaff[]>(() => getMasterPosisiConfigSync(rsName).positions);
+  const [customCategories, setCustomCategories] = useState<string[]>(() => getMasterPosisiConfigSync(rsName).customCategories || []);
+  const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState('');
   
   const [isEditing, setIsEditing] = useState<string | null>(null);
@@ -59,17 +59,39 @@ export default function MasterPosisiTab({ rsName, surveys = [] }: MasterPosisiTa
   };
 
   const loadData = useCallback(async () => {
-    setIsLoading(true);
-    const config = await getMasterPosisiConfig(rsName);
-    setPositions(config.positions || []);
-    setCustomCategories(config.customCategories || []);
-    setIsLoading(false);
+    try {
+      const config = await getMasterPosisiConfig(rsName);
+      if (config && config.positions && config.positions.length > 0) {
+        setPositions(config.positions);
+        setCustomCategories(config.customCategories || []);
+      }
+    } catch (err) {
+      console.warn("Failed background load master posisi:", err);
+    } finally {
+      setIsLoading(false);
+    }
   }, [rsName]);
 
   useEffect(() => {
+    let isMounted = true;
+    const syncCfg = getMasterPosisiConfigSync(rsName);
+    setPositions(syncCfg.positions);
+    setCustomCategories(syncCfg.customCategories || []);
+
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setIsLoading(false);
+    }, 1000);
+
     if (rsName) {
       loadData();
+    } else {
+      setIsLoading(false);
     }
+
+    return () => {
+      isMounted = false;
+      clearTimeout(safetyTimer);
+    };
   }, [rsName, loadData]);
 
   const notifyMasterDataUpdated = () => {
@@ -252,7 +274,7 @@ export default function MasterPosisiTab({ rsName, surveys = [] }: MasterPosisiTa
     return acc;
   }, {} as Record<string, PosisiStaff[]>);
 
-  if (isLoading) {
+  if (isLoading && positions.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>

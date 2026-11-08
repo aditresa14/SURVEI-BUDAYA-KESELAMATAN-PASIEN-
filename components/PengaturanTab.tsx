@@ -224,12 +224,17 @@ export default function PengaturanTab({
   };
   
   useEffect(() => {
+    let isMounted = true;
     if (identifier) {
+      const safetyTimer = setTimeout(() => {
+        if (isMounted) setIsFetchingProfile(false);
+      }, 1200);
+
       const fetchProfile = async () => {
         setIsFetchingProfile(true);
         try {
           const account = await getHospitalAccountByUsername(identifier);
-          if (account) {
+          if (account && isMounted) {
             setAccountId(account.id);
             setTempName(account.namaRs || '');
             setAlamatRs(account.alamatRs || '');
@@ -245,10 +250,15 @@ export default function PengaturanTab({
         } catch (e) {
           console.error("Failed to fetch profile", e);
         } finally {
-          setIsFetchingProfile(false);
+          if (isMounted) setIsFetchingProfile(false);
         }
       };
       fetchProfile();
+
+      return () => {
+        isMounted = false;
+        clearTimeout(safetyTimer);
+      };
     }
   }, [identifier]);
 

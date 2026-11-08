@@ -13,7 +13,7 @@ interface DashboardTabProps {
 export default function DashboardTab({ submissions, isSupabase, namaRs }: DashboardTabProps) {
   // If there are no submissions, don't crash
   const totalSubmissions = submissions.length;
-  const hospitalDisplayName = namaRs && namaRs.trim() ? namaRs : 'RSUD Al-Mulk';
+  const hospitalDisplayName = namaRs && namaRs.trim() ? namaRs : 'Rumah Sakit';
 
   // Calculate Average Scores
   const avgOverall = totalSubmissions > 0 

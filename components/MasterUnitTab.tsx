@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapPin, Search, Plus, Trash2, Edit2, Check, X, ShieldAlert, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
-import { UnitKerja, getMasterUnitConfig, saveMasterUnit, updateSurveyUnitName, SurveyData } from '../lib/db';
+import { UnitKerja, getMasterUnitConfig, getMasterUnitConfigSync, saveMasterUnit, updateSurveyUnitName, SurveyData } from '../lib/db';
 
 interface MasterUnitTabProps {
   rsName: string;
@@ -21,9 +21,9 @@ const PRESET_UNIT_CATEGORIES = [
 ];
 
 export default function MasterUnitTab({ rsName, surveys = [] }: MasterUnitTabProps) {
-  const [units, setUnits] = useState<UnitKerja[]>([]);
-  const [customCategories, setCustomCategories] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [units, setUnits] = useState<UnitKerja[]>(() => getMasterUnitConfigSync(rsName).units);
+  const [customCategories, setCustomCategories] = useState<string[]>(() => getMasterUnitConfigSync(rsName).customCategories || []);
+  const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState('');
   
   const [isEditing, setIsEditing] = useState<string | null>(null);
@@ -62,17 +62,39 @@ export default function MasterUnitTab({ rsName, surveys = [] }: MasterUnitTabPro
   };
 
   const loadData = useCallback(async () => {
-    setIsLoading(true);
-    const config = await getMasterUnitConfig(rsName);
-    setUnits(config.units || []);
-    setCustomCategories(config.customCategories || []);
-    setIsLoading(false);
+    try {
+      const config = await getMasterUnitConfig(rsName);
+      if (config && config.units && config.units.length > 0) {
+        setUnits(config.units);
+        setCustomCategories(config.customCategories || []);
+      }
+    } catch (err) {
+      console.warn("Failed background load master unit:", err);
+    } finally {
+      setIsLoading(false);
+    }
   }, [rsName]);
 
   useEffect(() => {
+    let isMounted = true;
+    const syncCfg = getMasterUnitConfigSync(rsName);
+    setUnits(syncCfg.units);
+    setCustomCategories(syncCfg.customCategories || []);
+
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setIsLoading(false);
+    }, 1000);
+
     if (rsName) {
       loadData();
+    } else {
+      setIsLoading(false);
     }
+
+    return () => {
+      isMounted = false;
+      clearTimeout(safetyTimer);
+    };
   }, [rsName, loadData]);
 
   const notifyMasterDataUpdated = () => {
@@ -291,7 +313,7 @@ export default function MasterUnitTab({ rsName, surveys = [] }: MasterUnitTabPro
     return acc;
   }, {} as Record<string, UnitKerja[]>);
 
-  if (isLoading) {
+  if (isLoading && units.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>

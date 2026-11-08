@@ -2759,7 +2759,6 @@ CREATE POLICY "Menghapus Publik Logo" ON storage.objects FOR DELETE USING (bucke
               </div>
 
             </div>
-          )}
 
           {/* Action Footer */}
           <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">

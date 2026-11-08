@@ -56,6 +56,7 @@ import {
   saveBenchmarkInteraksi, 
   BenchmarkInteraksi,
   getPengesahanConfig,
+  getPengesahanConfigSync,
   savePengesahanConfig,
   PengesahanConfig,
   SurveyData
@@ -68,6 +69,8 @@ import MasterUnitTab from './MasterUnitTab';
 interface PengaturanTabProps {
   role?: 'admin' | 'rs';
   identifier?: string;
+  hospitalId?: string;
+  accounts?: HospitalAccount[];
   namaRs: string;
   onUpdateRsName: (name: string) => void;
   onResetData: () => void;
@@ -83,6 +86,8 @@ interface PengaturanTabProps {
 export default function PengaturanTab({ 
   role = 'admin',
   identifier = '',
+  hospitalId,
+  accounts = [],
   namaRs, 
   onUpdateRsName, 
   onResetData,
@@ -284,40 +289,48 @@ export default function PengaturanTab({
     }
   }, [activeHeaderImage]);
 
-  // Pengesahan Halaman State
-  const [pengesahanForm, setPengesahanForm] = useState<PengesahanConfig>({
-    namaRs: namaRs || '',
-    logoRs: '',
-    kota: 'Sukabumi',
-    tanggalPengesahan: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
-    direkturNama: 'dr. H. Ahmad Wijaya',
-    direkturGelar: '',
-    direkturJabatan: 'Direktur Utama Rumah Sakit',
-    direkturNipType: 'NIP',
-    direkturNip: '19780512 200501 1 002',
-    pjNama: 'dr. Budi Santoso',
-    pjGelar: '',
-    pjJabatan: 'Ketua Komite Mutu & Keselamatan Pasien',
-    pjNipType: 'NIP',
-    pjNip: '19820315 200804 1 005',
-  });
+  // Pengesahan Halaman State - Initialized synchronously from local cache
+  const [pengesahanForm, setPengesahanForm] = useState<PengesahanConfig>(() => 
+    getPengesahanConfigSync(hospitalId || identifier || namaRs, namaRs)
+  );
   const [isSavingPengesahan, setIsSavingPengesahan] = useState(false);
   const [isFetchingPengesahan, setIsFetchingPengesahan] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+    // 1. Instant local sync
+    const localCfg = getPengesahanConfigSync(hospitalId || identifier || namaRs, namaRs);
+    if (localCfg) {
+      setPengesahanForm(localCfg);
+    }
+
+    // 2. Background fresh remote check (non-blocking)
     const fetchPengesahan = async () => {
       setIsFetchingPengesahan(true);
       try {
-        const config = await getPengesahanConfig(identifier || namaRs, namaRs);
-        setPengesahanForm(config);
+        const config = await getPengesahanConfig(hospitalId || identifier || namaRs, namaRs);
+        if (isMounted && config) {
+          setPengesahanForm(config);
+        }
       } catch (err) {
         console.warn("Gagal memuat konfigurasi pengesahan:", err);
       } finally {
-        setIsFetchingPengesahan(false);
+        if (isMounted) setIsFetchingPengesahan(false);
       }
     };
+
     fetchPengesahan();
-  }, [identifier, namaRs]);
+
+    // 3. Safety timeout so loader never hangs
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setIsFetchingPengesahan(false);
+    }, 800);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(safetyTimer);
+    };
+  }, [identifier, hospitalId, namaRs]);
 
   const handleSavePengesahan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -328,7 +341,7 @@ export default function PengaturanTab({
 
     setIsSavingPengesahan(true);
     try {
-      await savePengesahanConfig(identifier || namaRs, pengesahanForm);
+      await savePengesahanConfig(hospitalId || identifier || namaRs, pengesahanForm, namaRs);
       showToast("✅ Pengaturan Halaman Pengesahan berhasil disimpan. Perubahan ini berlaku khusus untuk Laporan Resmi pada menu Laporan Survei.", "success");
     } catch (err: any) {
       showToast(`❌ Gagal menyimpan Halaman Pengesahan: ${err.message || err}`, "error");
@@ -2481,8 +2494,15 @@ CREATE POLICY "Menghapus Publik Logo" ON storage.objects FOR DELETE USING (bucke
           {/* Header Banner */}
           <div className="bg-[#14B8A6] rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
             <div className="relative z-10 space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-600/50 border border-teal-400/30 text-xs font-semibold backdrop-blur-md">
-                <FileCheck className="w-3.5 h-3.5 text-teal-200" /> Form Lembar Pengesahan Laporan Resmi
+              <div className="flex items-center gap-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-600/50 border border-teal-400/30 text-xs font-semibold backdrop-blur-md">
+                  <FileCheck className="w-3.5 h-3.5 text-teal-200" /> Form Lembar Pengesahan Laporan Resmi
+                </div>
+                {isFetchingPengesahan && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] text-white font-medium backdrop-blur-sm animate-pulse">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Menyinkronkan...
+                  </span>
+                )}
               </div>
               <h2 className="text-xl font-black tracking-tight">Pengaturan Halaman Pengesahan</h2>
               <p className="text-xs text-teal-100/80 max-w-2xl leading-relaxed">
@@ -2491,13 +2511,7 @@ CREATE POLICY "Menghapus Publik Logo" ON storage.objects FOR DELETE USING (bucke
             </div>
           </div>
 
-          {isFetchingPengesahan ? (
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-12 flex flex-col items-center justify-center space-y-3">
-              <Loader2 className="w-8 h-8 text-teal-600 animate-spin" />
-              <p className="text-xs text-slate-500 font-medium">Memuat data halaman pengesahan...</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
               {/* CARD 1: DATA RUMAH SAKIT */}
               <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md p-6 space-y-5 lg:col-span-1">
@@ -2756,7 +2770,7 @@ CREATE POLICY "Menghapus Publik Logo" ON storage.objects FOR DELETE USING (bucke
             
             <button
               type="submit"
-              disabled={isSavingPengesahan || isFetchingPengesahan}
+              disabled={isSavingPengesahan}
               className="w-full sm:w-auto px-6 py-3 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs shadow-md shadow-teal-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer transform-gpu hover:scale-[1.01]"
             >
               {isSavingPengesahan ? (

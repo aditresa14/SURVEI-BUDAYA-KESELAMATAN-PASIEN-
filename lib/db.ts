@@ -36,6 +36,7 @@ export interface HospitalAccount {
   updated_at?: string;
   kodePos?: string;
   noTelepon?: string;
+  pengesahan_config?: PengesahanConfig;
 }
 
 export interface AccountAuditLog {
@@ -198,7 +199,10 @@ export const mapToHospitalAccount = (item: any): HospitalAccount => {
     rejectionReason: item.rejection_reason,
     updated_at: item.updated_at,
     kodePos: kodePos || item.kode_pos || '',
-    noTelepon: noTelepon || item.no_telepon || ''
+    noTelepon: noTelepon || item.no_telepon || '',
+    pengesahan_config: typeof item.pengesahan_config === 'string'
+      ? (() => { try { return JSON.parse(item.pengesahan_config); } catch { return undefined; } })()
+      : (item.pengesahan_config || item.pengesahanConfig || undefined)
   };
 };
 
@@ -2470,66 +2474,141 @@ export interface PengesahanConfig {
 
 export const LOCAL_PENGESAHAN_KEY_PREFIX = 'ahrq_pengesahan_v1_';
 
-export async function getPengesahanConfig(hospitalIdOrUsername?: string, currentNamaRs?: string): Promise<PengesahanConfig> {
-  const identifier = (hospitalIdOrUsername || 'default').toLowerCase().trim();
+export function getPengesahanConfigSync(hospitalIdOrUsername?: string, currentNamaRs?: string): PengesahanConfig {
+  const defaultDate = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const rawId = (hospitalIdOrUsername || '').trim();
+  const cleanId = rawId.toLowerCase();
+  const rawRs = (currentNamaRs || '').trim();
+  const cleanRs = rawRs.toLowerCase();
+
   let foundConfig: PengesahanConfig | null = null;
   let isSpecific = false;
 
-  const supabase = getSupabaseClient();
-  if (supabase && identifier && identifier !== 'default' && identifier !== 'global') {
-    try {
-      // 1. Try hospital_accounts table by ID or username
-      const { data: accData } = await supabase
-        .from('hospital_accounts')
-        .select('id, username, pengesahan_config')
-        .or(`id.eq."${hospitalIdOrUsername}",username.ilike."${hospitalIdOrUsername}"`)
-        .limit(1);
+  // 1. Check in-memory cached accounts (or stale accounts fallback)
+  const accounts = getCachedAccountsSync() || [];
+  const matchedAcc = accounts.find((a: any) => {
+    if (!a) return false;
+    const aId = (a.id || '').toLowerCase();
+    const aUser = (a.username || '').toLowerCase();
+    const aRs = (a.namaRs || '').toLowerCase();
+    return (
+      (cleanId && (aId === cleanId || aUser === cleanId || aRs === cleanId)) ||
+      (cleanRs && aRs === cleanRs)
+    );
+  });
 
-      if (accData && accData.length > 0 && accData[0].pengesahan_config) {
-        foundConfig = typeof accData[0].pengesahan_config === 'string'
-          ? JSON.parse(accData[0].pengesahan_config)
-          : accData[0].pengesahan_config;
-        isSpecific = true;
-      }
+  if (matchedAcc && matchedAcc.pengesahan_config) {
+    const raw = matchedAcc.pengesahan_config;
+    foundConfig = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (foundConfig && (foundConfig.direkturNama || foundConfig.pjNama || foundConfig.namaRs)) {
+      isSpecific = true;
+    }
+  }
 
-      // 2. Try ahrq_surveys table fallback (id = PENGESAHAN_<identifier>)
-      if (!foundConfig) {
-        const { data: surveyRows } = await supabase
-          .from('ahrq_surveys')
-          .select('dimensi_scores')
-          .eq('id', `PENGESAHAN_${identifier}`)
-          .order('created_at', { ascending: false, nullsFirst: false })
-          .limit(1);
+  // 2. Check localStorage candidates
+  if (!foundConfig && typeof window !== 'undefined') {
+    const candidates: string[] = [];
+    if (rawId) candidates.push(rawId, cleanId);
+    if (rawRs) candidates.push(rawRs, cleanRs);
+    if (matchedAcc) {
+      if (matchedAcc.id) candidates.push(matchedAcc.id, matchedAcc.id.toLowerCase());
+      if (matchedAcc.username) candidates.push(matchedAcc.username, matchedAcc.username.toLowerCase());
+      if (matchedAcc.namaRs) candidates.push(matchedAcc.namaRs, matchedAcc.namaRs.toLowerCase());
+    }
 
-        const surveyRow = surveyRows && surveyRows.length > 0 ? surveyRows[0] : null;
-        if (surveyRow && surveyRow.dimensi_scores && (surveyRow.dimensi_scores as any).pengesahan) {
-          foundConfig = (surveyRow.dimensi_scores as any).pengesahan;
-          isSpecific = true;
+    // Try each candidate first
+    for (const cand of candidates) {
+      if (!cand || cand === 'default' || cand === 'global' || cand === 'all') continue;
+      try {
+        const stored = localStorage.getItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${cand}`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && (parsed.direkturNama || parsed.pjNama || parsed.namaRs)) {
+            foundConfig = parsed;
+            isSpecific = true;
+            break;
+          }
         }
+      } catch (e) {
+        // ignore parse error
       }
-    } catch (e) {
-      console.warn("Failed to fetch pengesahan config from Supabase:", e);
+    }
+
+    // 3. Scan all localStorage keys starting with LOCAL_PENGESAHAN_KEY_PREFIX
+    if (!foundConfig) {
+      try {
+        const allMatchingConfigs: Array<{ key: string; cfg: PengesahanConfig }> = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith(LOCAL_PENGESAHAN_KEY_PREFIX)) {
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              try {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') {
+                  allMatchingConfigs.push({ key, cfg: parsed });
+                }
+              } catch {}
+            }
+          }
+        }
+
+        // Match by hospital name inside the JSON
+        if (cleanRs || cleanId) {
+          const matchByName = allMatchingConfigs.find(item => {
+            const cfgName = (item.cfg.namaRs || '').toLowerCase().trim();
+            return (
+              (cleanRs && (cfgName === cleanRs || cfgName.includes(cleanRs) || cleanRs.includes(cfgName))) ||
+              (cleanId && (cfgName === cleanId || cfgName.includes(cleanId) || cleanId.includes(cfgName)))
+            );
+          });
+          if (matchByName) {
+            foundConfig = matchByName.cfg;
+            isSpecific = true;
+          }
+        }
+
+        // 4. If still not found, check global key or default
+        if (!foundConfig) {
+          const globalStored = localStorage.getItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}global`);
+          if (globalStored) {
+            try {
+              foundConfig = JSON.parse(globalStored);
+            } catch {}
+          }
+        }
+
+        // 5. If still not found, check any custom config in localStorage
+        if (!foundConfig && allMatchingConfigs.length > 0) {
+          const nonDefault = allMatchingConfigs.find(c => 
+            c.cfg.direkturNama && c.cfg.direkturNama !== 'dr. H. Ahmad Wijaya'
+          );
+          if (nonDefault) {
+            foundConfig = nonDefault.cfg;
+          } else {
+            foundConfig = allMatchingConfigs[0].cfg;
+          }
+        }
+      } catch (e) {
+        console.warn("Failed scanning localStorage for pengesahan:", e);
+      }
     }
   }
 
-  // 3. Try LocalStorage fallback strictly for this specific hospital identifier (never cross-contaminate via global key)
-  if (!foundConfig && typeof window !== 'undefined' && identifier !== 'default') {
-    try {
-      const stored = localStorage.getItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${identifier}`);
-      if (stored) {
-        foundConfig = JSON.parse(stored);
-        isSpecific = true;
-      }
-    } catch (e) {
-      console.warn("Failed reading pengesahan config from localStorage:", e);
-    }
+  // Derive hospital name
+  let targetRsName = rawRs;
+  if (!targetRsName && matchedAcc?.namaRs) {
+    targetRsName = matchedAcc.namaRs;
   }
-
-  const defaultDate = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  const rsName = (isSpecific && foundConfig?.namaRs) ? foundConfig.namaRs : (currentNamaRs || foundConfig?.namaRs || 'Rumah Sakit');
+  if (!targetRsName && foundConfig?.namaRs) {
+    targetRsName = foundConfig.namaRs;
+  }
+  if (!targetRsName || targetRsName === 'Semua Rumah Sakit') {
+    targetRsName = 'Rumah Sakit';
+  }
 
   return {
-    namaRs: rsName,
+    namaRs: targetRsName,
     logoRs: foundConfig?.logoRs || '',
     kota: foundConfig?.kota || 'Sukabumi',
     tanggalPengesahan: foundConfig?.tanggalPengesahan || defaultDate,
@@ -2548,49 +2627,176 @@ export async function getPengesahanConfig(hospitalIdOrUsername?: string, current
   };
 }
 
-export async function savePengesahanConfig(hospitalIdOrUsername: string, config: PengesahanConfig): Promise<void> {
+export async function getPengesahanConfig(hospitalIdOrUsername?: string, currentNamaRs?: string): Promise<PengesahanConfig> {
+  // 1. Immediately read local config (0ms non-blocking)
+  const localConfig = getPengesahanConfigSync(hospitalIdOrUsername, currentNamaRs);
+
   const identifier = (hospitalIdOrUsername || 'default').toLowerCase().trim();
   const supabase = getSupabaseClient();
-
-  if (supabase && identifier) {
-    try {
-      const nowIso = new Date().toISOString();
-      // 1. Update hospital_accounts
-      await supabase
-        .from('hospital_accounts')
-        .update({
-          pengesahan_config: config,
-          updated_at: nowIso
-        })
-        .or(`id.eq."${hospitalIdOrUsername}",username.ilike."${hospitalIdOrUsername}"`);
-
-      // 2. Delete existing and insert to ahrq_surveys fallback table (prevents duplicate rows when no PK constraint exists)
-      await supabase
-        .from('ahrq_surveys')
-        .delete()
-        .eq('id', `PENGESAHAN_${identifier}`);
-
-      await supabase.from('ahrq_surveys').insert([{
-        id: `PENGESAHAN_${identifier}`,
-        nama_rs: config.namaRs || '_CONFIG_',
-        unit_kerja: 'PENGESAHAN_CONFIG',
-        jumlah_responden: 0,
-        tanggal_input: nowIso.split('T')[0],
-        created_at: nowIso,
-        dimensi_scores: { pengesahan: config }
-      }]);
-    } catch (e) {
-      console.warn("Error saving pengesahan config to Supabase:", e);
-    }
+  if (!supabase || !identifier || identifier === 'default' || identifier === 'all') {
+    return localConfig;
   }
 
-  if (typeof window !== 'undefined' && identifier !== 'default') {
+  // 2. Wrap remote query with strict 1500ms timeout
+  const remotePromise = (async (): Promise<PengesahanConfig | null> => {
     try {
-      localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${identifier}`, JSON.stringify(config));
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(hospitalIdOrUsername || '');
+      let query = supabase.from('hospital_accounts').select('id, username, nama_rs, pengesahan_config');
+      if (isUuid) {
+        query = query.eq('id', hospitalIdOrUsername);
+      } else if (hospitalIdOrUsername && hospitalIdOrUsername !== 'global') {
+        query = query.ilike('username', hospitalIdOrUsername);
+      } else if (currentNamaRs) {
+        query = query.ilike('nama_rs', currentNamaRs);
+      }
+
+      const { data: accData, error: accErr } = await query.limit(1);
+      if (!accErr && accData && accData.length > 0 && accData[0].pengesahan_config) {
+        const parsed = typeof accData[0].pengesahan_config === 'string'
+          ? JSON.parse(accData[0].pengesahan_config)
+          : accData[0].pengesahan_config;
+        if (parsed) return parsed;
+      }
+
+      // Check ahrq_surveys fallback table
+      const { data: surveyRows } = await supabase
+        .from('ahrq_surveys')
+        .select('dimensi_scores')
+        .eq('id', `PENGESAHAN_${identifier}`)
+        .order('created_at', { ascending: false, nullsFirst: false })
+        .limit(1);
+
+      if (surveyRows && surveyRows.length > 0 && (surveyRows[0].dimensi_scores as any)?.pengesahan) {
+        return (surveyRows[0].dimensi_scores as any).pengesahan;
+      }
+    } catch (e) {
+      console.warn("Remote pengesahan fetch warning:", e);
+    }
+    return null;
+  })();
+
+  const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
+
+  try {
+    const remoteResult = await Promise.race([remotePromise, timeoutPromise]);
+    if (remoteResult && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${identifier}`, JSON.stringify(remoteResult));
+        if (remoteResult.namaRs) {
+          localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${remoteResult.namaRs.toLowerCase().trim()}`, JSON.stringify(remoteResult));
+        }
+      } catch {}
+      return {
+        namaRs: remoteResult.namaRs || localConfig.namaRs,
+        logoRs: remoteResult.logoRs || localConfig.logoRs,
+        kota: remoteResult.kota || localConfig.kota,
+        tanggalPengesahan: remoteResult.tanggalPengesahan || localConfig.tanggalPengesahan,
+        direkturNama: remoteResult.direkturNama || localConfig.direkturNama,
+        direkturGelar: (remoteResult.direkturGelar !== undefined && remoteResult.direkturGelar !== null) ? remoteResult.direkturGelar : localConfig.direkturGelar,
+        direkturJabatan: remoteResult.direkturJabatan || localConfig.direkturJabatan,
+        direkturNipType: remoteResult.direkturNipType || localConfig.direkturNipType,
+        direkturNip: remoteResult.direkturNip || localConfig.direkturNip,
+        pjNama: remoteResult.pjNama || localConfig.pjNama,
+        pjGelar: (remoteResult.pjGelar !== undefined && remoteResult.pjGelar !== null) ? remoteResult.pjGelar : localConfig.pjGelar,
+        pjJabatan: remoteResult.pjJabatan || localConfig.pjJabatan,
+        pjNipType: remoteResult.pjNipType || localConfig.pjNipType,
+        pjNip: remoteResult.pjNip || localConfig.pjNip,
+      };
+    }
+  } catch (err) {
+    console.warn("Race pengesahan error:", err);
+  }
+
+  return localConfig;
+}
+
+export async function savePengesahanConfig(hospitalIdOrUsername: string, config: PengesahanConfig, currentNamaRs?: string): Promise<void> {
+  const rawId = (hospitalIdOrUsername || 'default').trim();
+  const cleanId = rawId.toLowerCase();
+  const nowIso = new Date().toISOString();
+
+  // 1. Immediately save to localStorage across all relevant keys
+  if (typeof window !== 'undefined' && cleanId !== 'default') {
+    try {
+      localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${cleanId}`, JSON.stringify(config));
+      if (rawId !== cleanId) {
+        localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${rawId}`, JSON.stringify(config));
+      }
+      if (config.namaRs) {
+        localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${config.namaRs.toLowerCase().trim()}`, JSON.stringify(config));
+        localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${config.namaRs.trim()}`, JSON.stringify(config));
+      }
+      if (currentNamaRs) {
+        localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${currentNamaRs.toLowerCase().trim()}`, JSON.stringify(config));
+      }
+      localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}global`, JSON.stringify(config));
     } catch (e) {
       console.warn("Error saving pengesahan config to localStorage:", e);
     }
   }
+
+  // 2. Update in-memory account cache if available
+  const accounts = getCachedAccountsSync() || [];
+  const matchedAcc = accounts.find((a: any) => {
+    if (!a) return false;
+    const aId = (a.id || '').toLowerCase();
+    const aUser = (a.username || '').toLowerCase();
+    const aRs = (a.namaRs || '').toLowerCase();
+    return (
+      (cleanId && (aId === cleanId || aUser === cleanId || aRs === cleanId)) ||
+      (config.namaRs && aRs === config.namaRs.toLowerCase().trim())
+    );
+  });
+  if (matchedAcc) {
+    matchedAcc.pengesahan_config = config;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${matchedAcc.id}`, JSON.stringify(config));
+        localStorage.setItem(`${LOCAL_PENGESAHAN_KEY_PREFIX}${matchedAcc.username.toLowerCase()}`, JSON.stringify(config));
+      } catch {}
+    }
+  }
+
+  // 3. Save to Supabase with safety timeout so network hangs never block user
+  const supabase = getSupabaseClient();
+  if (supabase && cleanId) {
+    const savePromise = (async () => {
+      try {
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
+        let updateQuery = supabase.from('hospital_accounts').update({
+          pengesahan_config: config,
+          updated_at: nowIso
+        });
+
+        if (isUuid) {
+          await updateQuery.eq('id', rawId);
+        } else if (cleanId && cleanId !== 'default' && cleanId !== 'global') {
+          await updateQuery.ilike('username', rawId);
+        } else if (config.namaRs) {
+          await updateQuery.ilike('nama_rs', config.namaRs);
+        }
+
+        // Upsert to ahrq_surveys fallback table
+        await supabase.from('ahrq_surveys').upsert({
+          id: `PENGESAHAN_${cleanId}`,
+          nama_rs: config.namaRs || '_CONFIG_',
+          unit_kerja: 'PENGESAHAN_CONFIG',
+          jumlah_responden: 0,
+          tanggal_input: nowIso.split('T')[0],
+          created_at: nowIso,
+          dimensi_scores: { pengesahan: config }
+        });
+      } catch (e) {
+        console.warn("Error saving pengesahan config to Supabase:", e);
+      }
+    })();
+
+    const timeoutPromise = new Promise(r => setTimeout(r, 3000));
+    try {
+      await Promise.race([savePromise, timeoutPromise]);
+    } catch {}
+  }
+
   triggerGdriveRealtimeSync();
 }
 

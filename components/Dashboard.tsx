@@ -1014,8 +1014,10 @@ export default function Dashboard({
         {activeTab === 'pengaturan' && (
           <PengaturanTab 
             role={role}
-            identifier={identifier}
-            namaRs={namaRs} 
+            identifier={role === 'admin' ? (selectedRsFilter === 'all' ? identifier : selectedRsFilter) : identifier}
+            hospitalId={role === 'admin' ? (selectedRsFilter === 'all' ? undefined : selectedRsFilter) : hospitalId}
+            namaRs={role === 'admin' && selectedRsFilter !== 'all' ? (activeHospitalNameForLaporan || namaRs) : namaRs}
+            accounts={accounts} 
             onUpdateRsName={onUpdateRsName} 
             onResetData={handleResetData} 
             activeWallpaper={activeWallpaper}

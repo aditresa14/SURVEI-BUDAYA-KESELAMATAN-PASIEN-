@@ -52,7 +52,8 @@ import {
   LabelList
 } from 'recharts';
 import { computeDimensionScores, DIMENSI_INFO, DIMENSI_ITEMS, scoreToPercent } from '../lib/scoring';
-import { getPengesahanConfig, PengesahanConfig, isSurveyResponse, isHospitalMatch } from '../lib/db';
+import { getPengesahanConfig,
+  getPengesahanConfigSync, PengesahanConfig, isSurveyResponse, isHospitalMatch } from '../lib/db';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas-pro';
 import { COVER_REPORT_BG } from '../lib/coverImageBg';
@@ -262,7 +263,9 @@ export default function LaporanTab({
       }
     }
   }, [selectedBenchmarkId]);
-  const [pengesahanConfig, setPengesahanConfig] = useState<PengesahanConfig | null>(null);
+  const [pengesahanConfig, setPengesahanConfig] = useState<PengesahanConfig>(() =>
+    getPengesahanConfigSync(identifier || hospitalId || namaRs, namaRs)
+  );
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<{ current: number; total: number } | null>(null);
@@ -270,11 +273,26 @@ export default function LaporanTab({
   const [isLoadingTarget, setIsLoadingTarget] = useState(false);
 
   React.useEffect(() => {
+    let isMounted = true;
+    // 1. Immediate sync update
+    const localCfg = getPengesahanConfigSync(identifier || hospitalId || namaRs, namaRs);
+    if (localCfg) {
+      setPengesahanConfig(localCfg);
+    }
+
+    // 2. Fresh remote update (non-blocking)
     const fetchPengesahan = async () => {
-      const cfg = await getPengesahanConfig(identifier || hospitalId || namaRs, namaRs);
-      setPengesahanConfig(cfg);
+      try {
+        const cfg = await getPengesahanConfig(identifier || hospitalId || namaRs, namaRs);
+        if (isMounted && cfg) {
+          setPengesahanConfig(cfg);
+        }
+      } catch (err) {
+        console.warn("Gagal memuat pengesahan:", err);
+      }
     };
     fetchPengesahan();
+    return () => { isMounted = false; };
   }, [identifier, hospitalId, namaRs]);
 
   // SECURE REALTIME BENCHMARK FETCHING

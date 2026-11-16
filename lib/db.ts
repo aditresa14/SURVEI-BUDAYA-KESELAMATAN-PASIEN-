@@ -1908,7 +1908,7 @@ export async function saveMasterPosisi(rsName: string, positions: PosisiStaff[],
         }
       })();
 
-      const timeoutPromise = new Promise(r => setTimeout(r, 2000));
+      const timeoutPromise = new Promise<void>((r) => setTimeout(r, 2000));
       await Promise.race([saveTask, timeoutPromise]);
     } catch {}
   }
@@ -2165,7 +2165,7 @@ export async function saveMasterUnit(rsName: string, units: UnitKerja[], customC
         }
       })();
 
-      const timeoutPromise = new Promise(r => setTimeout(r, 2000));
+      const timeoutPromise = new Promise<void>((r) => setTimeout(r, 2000));
       await Promise.race([saveTask, timeoutPromise]);
     } catch {}
   }
@@ -2778,7 +2778,7 @@ export async function getPengesahanConfig(hospitalIdOrUsername?: string, current
         .limit(50);
 
       if (!sErr && rows && rows.length > 0) {
-        const matchedRow = rows.find(r => {
+        const matchedRow = rows.find((r: any) => {
           if (!r) return false;
           const rId = (r.id || '').toLowerCase();
           const rNama = (r.nama_rs || '').toLowerCase();
@@ -2980,7 +2980,7 @@ export async function savePengesahanConfig(hospitalIdOrUsername: string, config:
       }
     })();
 
-    const timeoutPromise = new Promise(r => setTimeout(r, 2500));
+    const timeoutPromise = new Promise<void>((r) => setTimeout(r, 2500));
     try {
       await Promise.race([savePromise, timeoutPromise]);
     } catch {}

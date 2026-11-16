@@ -66,49 +66,56 @@ function ModernSunriseIcon() {
 
 function ModernNoonSunIcon() {
   return (
-    <svg className="w-9 h-9 md:w-11 md:h-11 drop-shadow-[0_10px_18px_rgba(245,158,11,0.45)]" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg className="w-10 h-10 md:w-12 md:h-12 drop-shadow-[0_6px_12px_rgba(250,204,21,0.35)]" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <radialGradient id="siang-sun-3d" cx="35%" cy="30%" r="70%" fx="35%" fy="30%">
-          <stop offset="0%" stopColor="#FFFFFF" />
-          <stop offset="25%" stopColor="#FEF08A" />
-          <stop offset="60%" stopColor="#F59E0B" />
-          <stop offset="90%" stopColor="#D97706" />
-          <stop offset="100%" stopColor="#B45309" />
+        <radialGradient id="siang-sun-3d" cx="38%" cy="32%" r="65%" fx="38%" fy="32%">
+          <stop offset="0%" stopColor="#FFFBEB" />
+          <stop offset="30%" stopColor="#FDE047" />
+          <stop offset="70%" stopColor="#FACC15" />
+          <stop offset="100%" stopColor="#F59E0B" />
         </radialGradient>
         <linearGradient id="siang-rays-3d" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#FDE047" />
-          <stop offset="100%" stopColor="#EA580C" />
+          <stop offset="100%" stopColor="#F59E0B" />
         </linearGradient>
-        <filter id="siang-3d-shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="5" stdDeviation="3.5" floodColor="#D97706" floodOpacity="0.5" />
+        <linearGradient id="siang-cloud-3d" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#FFFFFF" />
+          <stop offset="70%" stopColor="#F8FAFC" />
+          <stop offset="100%" stopColor="#E2E8F0" />
+        </linearGradient>
+        <filter id="siang-3d-shadow" x="-25%" y="-25%" width="150%" height="150%">
+          <feDropShadow dx="0" dy="3" stdDeviation="2.5" floodColor="#F59E0B" floodOpacity="0.35" />
+        </filter>
+        <filter id="cloud-3d-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="3" stdDeviation="2" floodColor="#64748B" floodOpacity="0.18" />
         </filter>
       </defs>
 
       {/* 3D Radiating Sunburst Rays */}
-      <g stroke="url(#siang-rays-3d)" strokeWidth="2.8" strokeLinecap="round" filter="url(#siang-3d-shadow)">
-        <line x1="20" y1="2" x2="20" y2="7" />
-        <line x1="20" y1="33" x2="20" y2="38" />
-        <line x1="2" y1="20" x2="7" y2="20" />
-        <line x1="33" y1="20" x2="38" y2="20" />
-        <line x1="7.27" y1="7.27" x2="10.8" y2="10.8" />
-        <line x1="29.2" y1="29.2" x2="32.73" y2="32.73" />
-        <line x1="7.27" y1="32.73" x2="10.8" y2="29.2" />
-        <line x1="29.2" y1="10.8" x2="32.73" y2="7.27" />
+      <g stroke="url(#siang-rays-3d)" strokeWidth="2.6" strokeLinecap="round">
+        <line x1="22" y1="3" x2="22" y2="7" />
+        <line x1="22" y1="35" x2="22" y2="38" />
+        <line x1="5" y1="20" x2="9" y2="20" />
+        <line x1="35" y1="20" x2="39" y2="20" />
+        <line x1="9.8" y1="7.8" x2="12.8" y2="10.8" />
+        <line x1="31.2" y1="29.2" x2="34.2" y2="32.2" />
+        <line x1="9.8" y1="32.2" x2="12.8" y2="29.2" />
+        <line x1="31.2" y1="10.8" x2="34.2" y2="7.8" />
       </g>
 
-      {/* 3D Spherical Sun Body */}
-      <circle cx="20" cy="20" r="10.5" fill="url(#siang-sun-3d)" filter="url(#siang-3d-shadow)" />
+      {/* 3D Spherical Golden Sun Body */}
+      <circle cx="22" cy="19.5" r="10" fill="url(#siang-sun-3d)" filter="url(#siang-3d-shadow)" />
 
-      {/* 3D Glossy Specular Curved Highlight */}
-      <path 
-        d="M14 14C16 12 20 11.5 24 13.5C21 12 16.5 12.5 14 14Z" 
-        fill="#FFFFFF" 
-        opacity="0.8" 
+      {/* 3D Glossy Specular Highlight */}
+      <ellipse cx="18.5" cy="15.5" rx="3.5" ry="2" fill="#FFFFFF" opacity="0.75" transform="rotate(-25 18.5 15.5)" />
+
+      {/* 3D Fluffy White Cloud in Foreground (Like Reference Image 2) */}
+      <path
+        d="M13 33.5H28.5C31.2614 33.5 33.5 31.2614 33.5 28.5C33.5 25.9453 31.5835 23.8384 29.1066 23.5366C28.2738 20.3512 25.3778 18 21.9 18C17.9817 18 14.7773 21.0281 14.4743 24.869C12.2266 25.3183 10.5 27.3097 10.5 29.7C10.5 31.7987 11.6193 33.5 13 33.5Z"
+        fill="url(#siang-cloud-3d)"
+        filter="url(#cloud-3d-shadow)"
       />
-      <circle cx="16" cy="15" r="2.2" fill="#FFFFFF" opacity="0.9" />
-
-      {/* Sky Sparkle */}
-      <path d="M32 5L33.2 7.7L35.9 8.9L33.2 10.1L32 12.8L30.8 10.1L28.1 8.9L30.8 7.7L32 5Z" fill="#38BDF8" />
+      <ellipse cx="21" cy="22.5" rx="4" ry="2" fill="#FFFFFF" opacity="0.9" />
     </svg>
   );
 }
@@ -421,19 +428,31 @@ export default function DashboardHeader({ role, namaRs, surveys, selectedYear, a
     visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } }
   };
 
+  const objectPositionStyle =
+    headerImage?.position === 'center'
+      ? 'center center'
+      : headerImage?.position === 'top-right'
+      ? 'right top'
+      : headerImage?.position === 'bottom-right'
+      ? 'right bottom'
+      : 'right center';
+
   return (
     <motion.div
       id="dashboard-header-container"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="relative overflow-hidden w-full p-6 md:p-8 rounded-[22px] bg-white border border-slate-200/80 shadow-[0_15px_35px_-5px_rgba(0,0,0,0.07),0_10px_15px_-6px_rgba(0,0,0,0.04)] flex flex-col justify-between items-start gap-8 pt-10 md:pt-8"
+      className="relative overflow-hidden w-full rounded-[24px] bg-white border border-slate-200/85 shadow-[0_14px_38px_-6px_rgba(15,23,42,0.07),0_6px_16px_-4px_rgba(20,184,166,0.05)] min-h-[210px] md:min-h-[235px] flex flex-col lg:flex-row justify-between items-stretch group"
     >
-      {/* Top Right Year Selector */}
-      <div className="absolute top-4 right-4 md:top-6 md:right-8 z-10" ref={dropdownRef}>
+      {/* Subtle Top Gradient Accent Line (Like Reference Image 2) */}
+      <div className="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-teal-500/20 via-teal-400/65 to-emerald-500/30 z-30 pointer-events-none" />
+
+      {/* Top Right Year Selector - Glassmorphic Pill */}
+      <div className="absolute top-3.5 right-4 md:top-4 md:right-5 z-30" ref={dropdownRef}>
         <button
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-          className="bg-white/90 hover:bg-white text-slate-700 text-xs font-bold py-1 px-2.5 rounded-md border border-slate-200 shadow-sm flex items-center gap-1 transition-all cursor-pointer"
+          className="bg-white/88 hover:bg-white backdrop-blur-md text-slate-700 text-xs font-bold py-1.5 px-3 rounded-xl border border-slate-200/80 shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
         >
           {selectedYear}
           <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
@@ -445,7 +464,7 @@ export default function DashboardHeader({ role, namaRs, surveys, selectedYear, a
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -5, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 mt-1.5 w-32 bg-white rounded-lg shadow-lg border border-slate-200/60 overflow-hidden z-[100]"
+              className="absolute right-0 mt-1.5 w-36 bg-white rounded-xl shadow-lg border border-slate-200/70 overflow-hidden z-[100]"
             >
               <div className="max-h-48 overflow-y-auto">
                 {availableYears.map((year) => (
@@ -474,136 +493,176 @@ export default function DashboardHeader({ role, namaRs, surveys, selectedYear, a
       {/* Decorative premium radial glow & gradient elements */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/5 rounded-full filter blur-[100px] pointer-events-none -z-10" />
       <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-blue-500/5 rounded-full filter blur-[80px] pointer-events-none -z-10" />
-      <div className="absolute top-1/2 left-1/3 -translate-y-1/2 w-48 h-48 bg-teal-500/5 rounded-full filter blur-[60px] pointer-events-none -z-10" />
 
-      {/* Content Layout Container: Left Text Content + Right Header Banner Image */}
-      <div className="flex flex-col lg:flex-row justify-between items-center gap-6 lg:gap-8 w-full">
-        {/* Left Column: Greeting, Welcome Messages */}
-        <div className="flex-1 w-full min-w-0 flex items-stretch gap-4 md:gap-5">
-          {/* Teal Vertical Accent Bar with vertical moving color animation */}
-          <motion.div 
-            animate={{ 
-              backgroundPosition: ["0% 0%", "0% 100%", "0% 0%"]
-            }}
-            transition={{
-              duration: 4,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            style={{
-              backgroundSize: "100% 200%",
-              backgroundImage: "linear-gradient(to bottom, #2dd4bf, #14b8a6, #0d9488, #14b8a6, #2dd4bf)"
-            }}
-            className="w-1 md:w-1.5 rounded-full shadow-xs shrink-0" 
-          />
-          
-          <div className="space-y-4 min-w-0 w-full">
-            <div className="space-y-1.5 min-w-0 w-full">
-              {/* Row 1: Greeting with Premium 3D Icon */}
-              <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-                <motion.div 
-                  variants={sapaanVariants}
-                  className="text-[22px] md:text-[36px] font-black text-[#1E6F73] leading-tight md:leading-none tracking-tight whitespace-normal break-words font-['Poppins',sans-serif]"
-                >
-                  {greeting.text}
-                </motion.div>
-                
-                <div className="relative inline-flex items-center justify-center shrink-0">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={greeting.type}
-                      initial={{ opacity: 0, scale: 0.7, rotate: -15, y: 5 }}
-                      animate={{ opacity: 1, scale: 1, rotate: 0, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.7, rotate: 15, y: -5 }}
-                      transition={{ duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
-                      className="flex items-center justify-center p-1 cursor-default hover:scale-110 transition-transform duration-300 filter drop-shadow-[0_5px_8px_rgba(15,23,42,0.35)]"
-                    >
-                      {renderGreetingIcon(greeting.type)}
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-              </div>
+      {/* Left Column: Greeting & Welcome Messages */}
+      <div className="relative z-20 flex-1 w-full lg:max-w-[55%] xl:max-w-[53%] p-6 sm:p-7 md:py-8 md:pl-8 md:pr-4 flex items-stretch gap-4 md:gap-5">
+        {/* Teal Vertical Accent Bar with vertical moving color animation */}
+        <motion.div 
+          animate={{ 
+            backgroundPosition: ["0% 0%", "0% 100%", "0% 0%"]
+          }}
+          transition={{
+            duration: 4,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          style={{
+            backgroundSize: "100% 200%",
+            backgroundImage: "linear-gradient(to bottom, #10b981, #0d9488, #0f766e, #0d9488, #10b981)"
+          }}
+          className="w-1.5 md:w-[7px] rounded-full shadow-xs shrink-0" 
+        />
+        
+        <div className="space-y-3.5 min-w-0 w-full flex flex-col justify-center">
+          <div className="space-y-1.5 min-w-0 w-full">
+            {/* Row 1: Greeting with Premium 3D Sun & Cloud Icon */}
+            <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+              <motion.div 
+                variants={sapaanVariants}
+                className="text-[24px] md:text-[36px] font-black text-[#0F766E] leading-tight md:leading-none tracking-tight whitespace-normal break-words font-['Poppins',sans-serif]"
+              >
+                {greeting.text}
+              </motion.div>
               
-              {/* Row 2: Hospital Title with Gradient Accent & Glow */}
-              <div ref={titleContainerRef} className="w-full min-w-0 overflow-hidden">
-                <motion.h2 
-                  ref={titleTextRef}
-                  variants={namaRsVariants}
-                  className="text-[30px] leading-[30px] font-extrabold text-[#1E6F73] tracking-tight whitespace-nowrap inline-block font-sans"
-                >
-                  Hai, Sobat <span className="text-[#1E6F73] font-extrabold">{displayHospital}</span>
-                </motion.h2>
+              <div className="relative inline-flex items-center justify-center shrink-0">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={greeting.type}
+                    initial={{ opacity: 0, scale: 0.7, rotate: -15, y: 5 }}
+                    animate={{ opacity: 1, scale: 1, rotate: 0, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.7, rotate: 15, y: -5 }}
+                    transition={{ duration: 0.45, ease: [0.34, 1.56, 0.64, 1] }}
+                    className="flex items-center justify-center p-0.5 cursor-default hover:scale-110 transition-transform duration-300"
+                  >
+                    {renderGreetingIcon(greeting.type)}
+                  </motion.div>
+                </AnimatePresence>
               </div>
             </div>
-
-            {/* Row 3: Subtitle & Description */}
-            <div className="space-y-2">
-              <motion.p 
-                variants={subjudulVariants}
-                className="text-[13px] font-bold text-[#45556C] leading-tight font-['Poppins',sans-serif] mb-2"
+            
+            {/* Row 2: Hospital Title */}
+            <div ref={titleContainerRef} className="w-full min-w-0 overflow-hidden">
+              <motion.h2 
+                ref={titleTextRef}
+                variants={namaRsVariants}
+                className="text-[30px] leading-[32px] font-extrabold text-[#0F766E] tracking-tight whitespace-nowrap inline-block font-sans"
               >
-                Selamat Datang di Aplikasi <span className="text-[13px] font-bold text-[#45556C] font-['Poppins',sans-serif]">Sistem Survei Budaya Keselamatan Pasien</span>
-              </motion.p>
-              <motion.p 
-                variants={deskripsiVariants}
-                className="text-[13px] text-slate-600 font-medium leading-[1.7]"
-              >
-                {"\"Kelola survei, analisis hasil, dan tingkatkan budaya keselamatan pasien melalui dashboard analitik berbasis AHRQ SOPS Version 2.0.\""}
-              </motion.p>
+                Hai, Sobat <span className="text-[#0F766E] font-extrabold">{displayHospital}</span>
+              </motion.h2>
             </div>
           </div>
+
+          {/* Row 3: Subtitle & Description */}
+          <div className="space-y-1.5">
+            <motion.p 
+              variants={subjudulVariants}
+              className="text-[13.5px] font-extrabold text-slate-800 leading-snug font-['Poppins',sans-serif]"
+            >
+              Selamat Datang di Aplikasi <span className="font-extrabold text-slate-800 font-['Poppins',sans-serif]">Sistem Survei Budaya Keselamatan Pasien</span>
+            </motion.p>
+            <motion.p 
+              variants={deskripsiVariants}
+              className="text-[12.5px] md:text-[13px] text-slate-500 italic font-medium leading-[1.65]"
+            >
+              {"\"Kelola survei, analisis hasil, dan tingkatkan budaya keselamatan pasien melalui dashboard analitik berbasis AHRQ SOPS Version 2.0.\""}
+            </motion.p>
+          </div>
         </div>
+      </div>
 
-        {/* Right Column: Header Banner Image */}
-        {headerImage?.url && !imageError && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96, x: 20 }}
-            animate={{ opacity: 1, scale: 1, x: 0 }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full lg:w-[360px] xl:w-[420px] shrink-0 relative group self-stretch flex items-center"
+      {/* Right Column: Full-Bleed Seamless + 3D Pop-Out Hero Banner */}
+      {headerImage?.url && !imageError && (
+        <motion.div
+          initial={{ opacity: 0, x: 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full h-56 sm:h-64 lg:h-auto lg:w-[52%] xl:w-[50%] lg:absolute lg:inset-y-0 lg:right-0 shrink-0 relative overflow-hidden pointer-events-none select-none z-10"
+        >
+          {/* Seamless Left-Edge Mask Container (Blends Flush into White Card like Reference Image 2) */}
+          <div
+            className="w-full h-full relative"
+            style={{
+              WebkitMaskImage:
+                'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.05) 5%, rgba(0,0,0,0.22) 13%, rgba(0,0,0,0.58) 23%, rgba(0,0,0,0.88) 34%, black 45%, black 100%)',
+              maskImage:
+                'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.05) 5%, rgba(0,0,0,0.22) 13%, rgba(0,0,0,0.58) 23%, rgba(0,0,0,0.88) 34%, black 45%, black 100%)',
+            }}
           >
-            {/* Ambient Soft Glows (Radar Style) */}
-            <div className="absolute -top-24 -right-24 w-64 h-64 bg-teal-500/10 rounded-full blur-[60px] pointer-events-none -z-10 group-hover:bg-teal-500/15 transition-colors duration-700" />
-            <div className="absolute -bottom-24 -right-12 w-64 h-64 bg-emerald-500/10 rounded-full blur-[60px] pointer-events-none -z-10 group-hover:bg-emerald-500/15 transition-colors duration-700" />
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-full h-full bg-gradient-to-l from-emerald-500/20 via-teal-400/10 to-transparent rounded-2xl filter blur-xl pointer-events-none -z-10" />
+            {/* LAYER 1: Base Background Scene (Charts / Architecture) */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={headerImage.url}
+              alt="Banner Card Header Dashboard"
+              onError={() => setImageError(true)}
+              className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.015] filter brightness-[1.01] contrast-[1.01]"
+              style={{ objectPosition: objectPositionStyle }}
+            />
 
-            {/* Seamless Image Container without box/borders */}
-            <div className="relative w-full h-44 sm:h-48 md:h-52 lg:h-56 overflow-hidden rounded-2xl pointer-events-none">
-              {/* Gradient Mask & Image Integration */}
-              <div 
-                className="w-full h-full relative"
+            {/* LAYER 2: Recessed Top Backdrop Frame (Creates Top Ceiling so Center Hero Pops Out Above It) */}
+            <div
+              className="absolute inset-x-0 top-0 h-5 bg-gradient-to-b from-white via-white/75 to-transparent z-10"
+              style={{
+                WebkitMaskImage:
+                  'linear-gradient(to right, black 0%, black 24%, transparent 40%, transparent 76%, black 92%, black 100%)',
+                maskImage:
+                  'linear-gradient(to right, black 0%, black 24%, transparent 40%, transparent 76%, black 92%, black 100%)',
+              }}
+            />
+
+            {/* LAYER 3: 3D Depth-of-Field & Volumetric Rim Backlight Buffer behind Foreground People */}
+            <div
+              className="absolute inset-0 backdrop-blur-[5px] bg-teal-400/5 z-10"
+              style={{
+                WebkitMaskImage:
+                  'radial-gradient(ellipse 39% 54% at 57% 72%, black 45%, rgba(0,0,0,0.5) 68%, transparent 85%)',
+                maskImage:
+                  'radial-gradient(ellipse 39% 54% at 57% 72%, black 45%, rgba(0,0,0,0.5) 68%, transparent 85%)',
+              }}
+            />
+            <div
+              className="absolute inset-0 z-10 mix-blend-screen opacity-75 group-hover:opacity-100 transition-opacity duration-500"
+              style={{
+                background:
+                  'radial-gradient(ellipse 42% 50% at 57% 66%, rgba(45, 212, 191, 0.32) 0%, rgba(56, 189, 248, 0.16) 45%, transparent 75%)',
+              }}
+            />
+
+            {/* LAYER 4: 3D Pop-Out Hero People Layer (Gambar Orang Pop-Out 3D) */}
+            <div
+              className="absolute inset-0 z-20 transition-transform duration-700 cubic-bezier(0.22, 1, 0.36, 1) scale-[1.055] -translate-y-1.5 group-hover:scale-[1.09] group-hover:-translate-y-2.5"
+              style={{
+                transformOrigin: '57% 100%',
+                filter:
+                  'drop-shadow(0 14px 22px rgba(15, 23, 42, 0.28)) drop-shadow(0 -4px 12px rgba(20, 184, 166, 0.18))',
+              }}
+            >
+              <div
+                className="w-full h-full"
                 style={{
-                  WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.8) 4%, black 12%, black 100%)',
-                  maskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.8) 4%, black 12%, black 100%)'
+                  WebkitMaskImage:
+                    'radial-gradient(ellipse 43% 58% at 57% 72%, black 56%, rgba(0,0,0,0.88) 70%, rgba(0,0,0,0.35) 84%, transparent 94%)',
+                  maskImage:
+                    'radial-gradient(ellipse 43% 58% at 57% 72%, black 56%, rgba(0,0,0,0.88) 70%, rgba(0,0,0,0.35) 84%, transparent 94%)',
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={headerImage.url}
-                  alt="Banner Card Header Dashboard"
-                  onError={() => setImageError(true)}
-                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03] filter brightness-[1.02] contrast-[1.02]"
-                  style={{
-                    objectPosition: headerImage.position === 'center'
-                      ? 'center center'
-                      : headerImage.position === 'top-right'
-                      ? 'right top'
-                      : headerImage.position === 'bottom-right'
-                      ? 'right bottom'
-                      : 'right center'
-                  }}
+                  alt="3D Pop-Out Hero Characters"
+                  className="w-full h-full object-cover filter contrast-[1.06] saturate-[1.07] brightness-[1.02]"
+                  style={{ objectPosition: objectPositionStyle }}
                 />
               </div>
-
-              {/* Soft Feather Overlay strictly at the left edge */}
-              <div className="absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-white via-white/40 to-transparent pointer-events-none" />
-              {/* Minimal top/bottom fade for subtle integration */}
-              <div className="absolute inset-x-0 top-0 h-3 bg-gradient-to-b from-white/30 to-transparent pointer-events-none" />
-              <div className="absolute inset-x-0 bottom-0 h-3 bg-gradient-to-t from-white/30 to-transparent pointer-events-none" />
             </div>
-          </motion.div>
-        )}
-      </div>
+          </div>
+
+          {/* Wide Seamless White Feather Overlay on the Left Edge */}
+          <div className="absolute inset-y-0 left-0 w-24 sm:w-28 md:w-36 bg-gradient-to-r from-white via-white/85 via-35% to-transparent pointer-events-none z-20" />
+
+          {/* Subtle 3D Grounding Floor Shadow at the Bottom Edge */}
+          <div className="absolute inset-x-0 bottom-0 h-3 bg-gradient-to-t from-slate-900/12 via-teal-900/5 to-transparent pointer-events-none z-30" />
+        </motion.div>
+      )}
     </motion.div>
   );
 }

@@ -215,6 +215,16 @@ export function isNegativeItem(groupId: string, itemId: string): boolean {
   return false;
 }
 
+export function normalizeHospitalKey(name?: string): string {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .replace(/[.,\-_/\\()]/g, ' ')
+    .replace(/\b(uobk|rsud|rsup|rsia|rsu|rs|rumah\s*sakit|hospital)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // Calculate percent positive score for a single group of answers
 export function calculateGroupPositiveScore(groupId: string, answers: Record<string, string>): number {
   let positiveCount = 0;

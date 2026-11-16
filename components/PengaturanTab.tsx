@@ -2020,123 +2020,56 @@ CREATE POLICY "Menghapus Publik Banner" ON storage.objects FOR DELETE USING (buc
             </div>
 
             {/* Mini Card Header Simulation */}
-            <div className="rounded-[20px] bg-white border border-slate-200/85 shadow-md relative overflow-hidden min-h-[160px] flex flex-col md:flex-row justify-between items-stretch group">
-              <div className="absolute top-0 inset-x-0 h-[2.5px] bg-gradient-to-r from-teal-500/20 via-teal-400/65 to-emerald-500/30 z-30 pointer-events-none" />
-              <div className="relative z-20 flex-1 min-w-0 md:max-w-[56%] p-4 sm:p-5 flex items-stretch gap-3">
-                <div className="w-1.5 rounded-full bg-gradient-to-b from-emerald-500 via-teal-600 to-teal-700 shrink-0" />
-                <div className="space-y-1.5 flex flex-col justify-center">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg sm:text-xl font-black text-[#0F766E]">Selamat Siang 🌤️</span>
-                  </div>
-                  <h4 className="text-lg sm:text-xl font-extrabold text-[#0F766E]">
-                    Hai, Sobat <span className="text-[#0F766E]">{namaRs || 'RS Sehat Abadi'}</span>
-                  </h4>
-                  <p className="text-xs font-extrabold text-slate-800 font-['Poppins',sans-serif]">
-                    Selamat Datang di Aplikasi Sistem Survei Budaya Keselamatan Pasien
-                  </p>
-                  <p className="text-[11px] text-slate-500 italic">
-                    {"\"Kelola survei, analisis hasil, dan tingkatkan budaya keselamatan pasien melalui dashboard analitik berbasis AHRQ SOPS Version 2.0.\""}
-                  </p>
+            <div className="p-4 sm:p-6 rounded-[20px] bg-white/80 backdrop-blur-md border border-slate-200 shadow-md relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg sm:text-xl font-black text-[#5CC8C9]">Selamat Siang ☀️</span>
                 </div>
+                <h4 className="text-xl sm:text-2xl font-extrabold text-[#2FA7A7]">
+                  Hai, Sobat <span className="text-[#2FA7A7]">{namaRs || 'RS Sehat Abadi'}</span>
+                </h4>
+                <p className="text-xs sm:text-sm font-bold text-[#1E6F73] font-['Poppins',sans-serif]">
+                  Selamat Datang di Aplikasi Sistem Survei Budaya Keselamatan Pasien
+                </p>
               </div>
 
-              {headerImageInput ? (
-                <div className="w-full h-40 md:h-auto md:w-[50%] md:absolute md:inset-y-0 md:right-0 shrink-0 relative overflow-hidden pointer-events-none select-none z-10">
-                  <div
-                    className="w-full h-full relative"
-                    style={{
-                      WebkitMaskImage:
-                        'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.06) 6%, rgba(0,0,0,0.28) 15%, rgba(0,0,0,0.65) 26%, black 42%, black 100%)',
-                      maskImage:
-                        'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.06) 6%, rgba(0,0,0,0.28) 15%, rgba(0,0,0,0.65) 26%, black 42%, black 100%)',
-                    }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={headerImageInput}
-                      alt="Header preview"
-                      className="w-full h-full object-cover"
+              <div className="w-full md:w-60 lg:w-72 shrink-0 relative self-stretch flex items-center">
+                {headerImageInput ? (
+                  <div className="relative w-full h-28 sm:h-32 overflow-hidden rounded-xl">
+                    <div 
+                      className="w-full h-full relative"
                       style={{
-                        objectPosition:
-                          headerImagePosition === 'center'
+                        WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.3) 12%, rgba(0,0,0,0.9) 35%, black 100%)',
+                        maskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.3) 12%, rgba(0,0,0,0.9) 35%, black 100%)'
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={headerImageInput}
+                        alt="Header preview"
+                        className="w-full h-full object-cover"
+                        style={{
+                          objectPosition: headerImagePosition === 'center'
                             ? 'center center'
                             : headerImagePosition === 'top-right'
                             ? 'right top'
                             : headerImagePosition === 'bottom-right'
                             ? 'right bottom'
-                            : 'right center',
-                      }}
-                    />
-
-                    {/* Recessed Top Backdrop Frame */}
-                    <div
-                      className="absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-white via-white/75 to-transparent z-10"
-                      style={{
-                        WebkitMaskImage:
-                          'linear-gradient(to right, black 0%, black 24%, transparent 40%, transparent 76%, black 92%, black 100%)',
-                        maskImage:
-                          'linear-gradient(to right, black 0%, black 24%, transparent 40%, transparent 76%, black 92%, black 100%)',
-                      }}
-                    />
-
-                    {/* 3D Depth-of-Field Buffer */}
-                    <div
-                      className="absolute inset-0 backdrop-blur-[4px] bg-teal-400/5 z-10"
-                      style={{
-                        WebkitMaskImage:
-                          'radial-gradient(ellipse 39% 54% at 57% 72%, black 45%, rgba(0,0,0,0.5) 68%, transparent 85%)',
-                        maskImage:
-                          'radial-gradient(ellipse 39% 54% at 57% 72%, black 45%, rgba(0,0,0,0.5) 68%, transparent 85%)',
-                      }}
-                    />
-
-                    {/* 3D Pop-Out Hero People Layer */}
-                    <div
-                      className="absolute inset-0 z-20 scale-[1.055] -translate-y-1 transition-transform duration-500 group-hover:scale-[1.085] group-hover:-translate-y-2"
-                      style={{
-                        transformOrigin: '57% 100%',
-                        filter: 'drop-shadow(0 10px 18px rgba(15, 23, 42, 0.25))',
-                      }}
-                    >
-                      <div
-                        className="w-full h-full"
-                        style={{
-                          WebkitMaskImage:
-                            'radial-gradient(ellipse 43% 58% at 57% 72%, black 56%, rgba(0,0,0,0.85) 70%, transparent 94%)',
-                          maskImage:
-                            'radial-gradient(ellipse 43% 58% at 57% 72%, black 56%, rgba(0,0,0,0.85) 70%, transparent 94%)',
+                            : 'right center'
                         }}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={headerImageInput}
-                          alt="3D Pop-Out Hero Preview"
-                          className="w-full h-full object-cover filter contrast-[1.06] saturate-[1.07]"
-                          style={{
-                            objectPosition:
-                              headerImagePosition === 'center'
-                                ? 'center center'
-                                : headerImagePosition === 'top-right'
-                                ? 'right top'
-                                : headerImagePosition === 'bottom-right'
-                                ? 'right bottom'
-                                : 'right center',
-                          }}
-                        />
-                      </div>
+                      />
                     </div>
+                    {/* Soft Feather Overlays */}
+                    <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-white via-white/60 to-transparent pointer-events-none" />
+                    <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-white/50 to-transparent pointer-events-none" />
                   </div>
-                  {/* Soft Feather Overlays */}
-                  <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-white via-white/80 to-transparent pointer-events-none z-20" />
-                </div>
-              ) : (
-                <div className="p-4 flex items-center">
-                  <div className="w-full md:w-56 h-28 rounded-[16px] border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center p-3 text-center text-slate-400">
+                ) : (
+                  <div className="w-full h-28 sm:h-32 rounded-[16px] border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center p-3 text-center text-slate-400">
                     <ImageIcon className="w-6 h-6 mb-1 text-slate-300" />
                     <span className="text-[11px] font-semibold">Desain Bawaan (Tanpa Gambar)</span>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 

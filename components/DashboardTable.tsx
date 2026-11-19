@@ -1073,7 +1073,7 @@ export default function DashboardTable({
       </div>
 
       {/* Respondent Profile Dashboard Section */}
-      <div id="ahrq-respondent-profile-card" className="relative bg-white/85 backdrop-blur-md border border-slate-200 shadow-[0_15px_35px_-5px_rgba(0,0,0,0.1),0_10px_15px_-6px_rgba(0,0,0,0.1)] p-6 md:p-8 space-y-8 overflow-hidden group rounded-[22px]">
+      <div id="ahrq-respondent-profile-card" className="relative bg-white/85 backdrop-blur-md border border-slate-200 shadow-[0_15px_35px_-5px_rgba(0,0,0,0.1),0_10px_15px_-6px_rgba(0,0,0,0.1)] p-4 sm:p-6 md:p-7 space-y-6 sm:space-y-7 overflow-hidden group rounded-[22px]">
         <div className="absolute -top-24 -right-24 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -z-10 group-hover:bg-teal-500/15 transition-colors duration-700"></div>
         <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl -z-10 group-hover:bg-emerald-500/10 transition-colors duration-700"></div>
         
@@ -1109,14 +1109,14 @@ export default function DashboardTable({
         ) : (
           <div className="flex flex-col gap-6">
           {/* Responsive grid for 6 charts: 3 columns on wide screens, 2 on medium, 1 on small */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
             
             {/* 1. Lama Kerja di RS */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.05 }}
-              className="bg-slate-50 border border-slate-200 p-5 rounded-[20px] shadow-[0_8px_20px_-3px_rgba(0,0,0,0.08)] hover:border-teal-500/50 hover:bg-white hover:-translate-y-1 transition-all transform-gpu duration-300 flex flex-col justify-between"
+              className="bg-slate-50 border border-slate-200 p-4 sm:p-5 xl:p-4 2xl:p-5 rounded-[20px] shadow-[0_8px_20px_-3px_rgba(0,0,0,0.08)] hover:border-teal-500/50 hover:bg-white hover:-translate-y-1 transition-all transform-gpu duration-300 flex flex-col justify-between"
             >
               <div>
                 <div className="flex justify-between items-center mb-4">
@@ -1158,12 +1158,14 @@ export default function DashboardTable({
                 </div>
 
                 {/* Legend list with counts and percentages */}
-                <div className="grid grid-cols-2 gap-2 mt-4 text-[10px] text-slate-600 border-t border-slate-200 pt-3">
+                <div className="grid grid-cols-2 gap-x-2 sm:gap-x-2.5 gap-y-1.5 mt-4 text-[10px] text-slate-600 border-t border-slate-200/80 pt-3">
                   {rsChartData.map((item, idx) => (
-                    <div key={item.name} className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}></span>
-                      <span className="md:truncate md:max-w-[80px] whitespace-normal break-words font-semibold text-slate-500" title={item.name}>{item.name}:</span>
-                      <span className="font-bold text-slate-800 ml-auto">{item.value} ({item.percentage}%)</span>
+                    <div key={item.name} className="flex items-center justify-between gap-1 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}></span>
+                        <span className="font-semibold text-slate-600 whitespace-nowrap" title={item.name}>{item.name}:</span>
+                      </div>
+                      <span className="font-bold text-slate-800 shrink-0 whitespace-nowrap tabular-nums pl-1">{item.value} ({item.percentage}%)</span>
                     </div>
                   ))}
                 </div>
@@ -1180,7 +1182,7 @@ export default function DashboardTable({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}
-              className="bg-slate-50 border border-slate-200 p-5 rounded-[20px] shadow-[0_8px_20px_-3px_rgba(0,0,0,0.08)] hover:border-teal-500/50 hover:bg-white hover:-translate-y-1 transition-all transform-gpu duration-300 flex flex-col justify-between"
+              className="bg-slate-50 border border-slate-200 p-4 sm:p-5 xl:p-4 2xl:p-5 rounded-[20px] shadow-[0_8px_20px_-3px_rgba(0,0,0,0.08)] hover:border-teal-500/50 hover:bg-white hover:-translate-y-1 transition-all transform-gpu duration-300 flex flex-col justify-between"
             >
               <div>
                 <div className="flex justify-between items-center mb-4">
@@ -1219,12 +1221,14 @@ export default function DashboardTable({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 mt-4 text-[10px] text-slate-600 border-t border-slate-200 pt-3">
+                <div className="grid grid-cols-2 gap-x-2 sm:gap-x-2.5 gap-y-1.5 mt-4 text-[10px] text-slate-600 border-t border-slate-200/80 pt-3">
                   {unitChartData.map((item, idx) => (
-                    <div key={item.name} className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[(idx + 1) % CHART_COLORS.length] }}></span>
-                      <span className="md:truncate md:max-w-[80px] whitespace-normal break-words font-semibold text-slate-500" title={item.name}>{item.name}:</span>
-                      <span className="font-bold text-slate-800 ml-auto">{item.value} ({item.percentage}%)</span>
+                    <div key={item.name} className="flex items-center justify-between gap-1 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[(idx + 1) % CHART_COLORS.length] }}></span>
+                        <span className="font-semibold text-slate-600 whitespace-nowrap" title={item.name}>{item.name}:</span>
+                      </div>
+                      <span className="font-bold text-slate-800 shrink-0 whitespace-nowrap tabular-nums pl-1">{item.value} ({item.percentage}%)</span>
                     </div>
                   ))}
                 </div>
@@ -1240,7 +1244,7 @@ export default function DashboardTable({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.15 }}
-              className="bg-slate-50 border border-slate-200 p-5 rounded-[20px] shadow-[0_8px_20px_-3px_rgba(0,0,0,0.08)] hover:border-teal-500/50 hover:bg-white hover:-translate-y-1 transition-all transform-gpu duration-300 flex flex-col justify-between"
+              className="bg-slate-50 border border-slate-200 p-4 sm:p-5 xl:p-4 2xl:p-5 rounded-[20px] shadow-[0_8px_20px_-3px_rgba(0,0,0,0.08)] hover:border-teal-500/50 hover:bg-white hover:-translate-y-1 transition-all transform-gpu duration-300 flex flex-col justify-between"
             >
               <div>
                 <div className="flex justify-between items-center mb-4">
@@ -1279,12 +1283,14 @@ export default function DashboardTable({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 mt-4 text-[10px] text-slate-600 border-t border-slate-200 pt-3">
+                <div className="grid grid-cols-2 gap-x-2 sm:gap-x-2.5 gap-y-1.5 mt-4 text-[10px] text-slate-600 border-t border-slate-200/80 pt-3">
                   {directChartData.map((item, idx) => (
-                    <div key={item.name} className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.name === 'Ya' ? '#10B981' : '#F43F5E' }}></span>
-                      <span className="md:truncate md:max-w-[80px] whitespace-normal break-words font-semibold text-slate-500" title={item.name}>{item.name}:</span>
-                      <span className="font-bold text-slate-800 ml-auto">{item.value} ({item.percentage}%)</span>
+                    <div key={item.name} className="flex items-center justify-between gap-1 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.name === 'Ya' ? '#10B981' : '#F43F5E' }}></span>
+                        <span className="font-semibold text-slate-600 whitespace-nowrap" title={item.name}>{item.name}:</span>
+                      </div>
+                      <span className="font-bold text-slate-800 shrink-0 whitespace-nowrap tabular-nums pl-1">{item.value} ({item.percentage}%)</span>
                     </div>
                   ))}
                 </div>
@@ -1300,7 +1306,7 @@ export default function DashboardTable({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.2 }}
-              className="bg-slate-50 border border-slate-200 p-5 rounded-[20px] shadow-[0_8px_20px_-3px_rgba(0,0,0,0.08)] hover:border-teal-500/50 hover:bg-white hover:-translate-y-1 transition-all transform-gpu duration-300 flex flex-col justify-between"
+              className="bg-slate-50 border border-slate-200 p-4 sm:p-5 xl:p-4 2xl:p-5 rounded-[20px] shadow-[0_8px_20px_-3px_rgba(0,0,0,0.08)] hover:border-teal-500/50 hover:bg-white hover:-translate-y-1 transition-all transform-gpu duration-300 flex flex-col justify-between"
             >
               <div>
                 <div className="flex justify-between items-center mb-4">
@@ -1339,12 +1345,14 @@ export default function DashboardTable({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 mt-4 text-[10px] text-slate-600 border-t border-slate-200 pt-3 max-h-24 overflow-y-auto">
+                <div className="grid grid-cols-2 gap-x-2 sm:gap-x-2.5 gap-y-1.5 mt-4 text-[10px] text-slate-600 border-t border-slate-200/80 pt-3 max-h-24 overflow-y-auto">
                   {jobChartData.map((item, idx) => (
-                    <div key={item.name} className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[(idx + 3) % CHART_COLORS.length] }}></span>
-                      <span className="md:truncate md:max-w-[80px] whitespace-normal break-words font-semibold text-slate-500" title={item.name}>{item.name}:</span>
-                      <span className="font-bold text-slate-800 ml-auto">{item.value} ({item.percentage}%)</span>
+                    <div key={item.name} className="flex items-center justify-between gap-1 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[(idx + 3) % CHART_COLORS.length] }}></span>
+                        <span className="font-semibold text-slate-600 truncate" title={item.name}>{item.name}:</span>
+                      </div>
+                      <span className="font-bold text-slate-800 shrink-0 whitespace-nowrap tabular-nums pl-1">{item.value} ({item.percentage}%)</span>
                     </div>
                   ))}
                 </div>
@@ -1360,7 +1368,7 @@ export default function DashboardTable({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.25 }}
-              className="bg-slate-50 border border-slate-200 p-5 rounded-[20px] shadow-[0_8px_20px_-3px_rgba(0,0,0,0.08)] hover:border-teal-500/50 hover:bg-white hover:-translate-y-1 transition-all transform-gpu duration-300 flex flex-col justify-between"
+              className="bg-slate-50 border border-slate-200 p-4 sm:p-5 xl:p-4 2xl:p-5 rounded-[20px] shadow-[0_8px_20px_-3px_rgba(0,0,0,0.08)] hover:border-teal-500/50 hover:bg-white hover:-translate-y-1 transition-all transform-gpu duration-300 flex flex-col justify-between"
             >
               <div>
                 <div className="flex justify-between items-center mb-4">
@@ -1399,12 +1407,14 @@ export default function DashboardTable({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 mt-4 text-[10px] text-slate-600 border-t border-slate-200 pt-3">
+                <div className="grid grid-cols-2 gap-x-2 sm:gap-x-2.5 gap-y-1.5 mt-4 text-[10px] text-slate-600 border-t border-slate-200/80 pt-3">
                   {hoursChartData.map((item, idx) => (
-                    <div key={item.name} className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[(idx + 4) % CHART_COLORS.length] }}></span>
-                      <span className="md:truncate md:max-w-[80px] whitespace-normal break-words font-semibold text-slate-500" title={item.name}>{item.name}:</span>
-                      <span className="font-bold text-slate-800 ml-auto">{item.value} ({item.percentage}%)</span>
+                    <div key={item.name} className="flex items-center justify-between gap-1 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[(idx + 4) % CHART_COLORS.length] }}></span>
+                        <span className="font-semibold text-slate-600 whitespace-nowrap" title={item.name}>{item.name}:</span>
+                      </div>
+                      <span className="font-bold text-slate-800 shrink-0 whitespace-nowrap tabular-nums pl-1">{item.value} ({item.percentage}%)</span>
                     </div>
                   ))}
                 </div>
@@ -1420,7 +1430,7 @@ export default function DashboardTable({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.3 }}
-              className="bg-slate-50 border border-slate-200 p-5 rounded-[20px] shadow-[0_8px_20px_-3px_rgba(0,0,0,0.08)] hover:border-teal-500/50 hover:bg-white hover:-translate-y-1 transition-all transform-gpu duration-300 flex flex-col justify-between"
+              className="bg-slate-50 border border-slate-200 p-4 sm:p-5 xl:p-4 2xl:p-5 rounded-[20px] shadow-[0_8px_20px_-3px_rgba(0,0,0,0.08)] hover:border-teal-500/50 hover:bg-white hover:-translate-y-1 transition-all transform-gpu duration-300 flex flex-col justify-between"
             >
               <div>
                 <div className="flex justify-between items-center mb-4">
@@ -1459,12 +1469,14 @@ export default function DashboardTable({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 mt-4 text-[10px] text-slate-600 border-t border-slate-200 pt-3">
+                <div className="grid grid-cols-2 gap-x-2 sm:gap-x-2.5 gap-y-1.5 mt-4 text-[10px] text-slate-600 border-t border-slate-200/80 pt-3">
                   {professionChartData.map((item, idx) => (
-                    <div key={item.name} className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[(idx + 5) % CHART_COLORS.length] }}></span>
-                      <span className="md:truncate md:max-w-[80px] whitespace-normal break-words font-semibold text-slate-500" title={item.name}>{item.name}:</span>
-                      <span className="font-bold text-slate-800 ml-auto">{item.value} ({item.percentage}%)</span>
+                    <div key={item.name} className="flex items-center justify-between gap-1 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[(idx + 5) % CHART_COLORS.length] }}></span>
+                        <span className="font-semibold text-slate-600 whitespace-nowrap" title={item.name}>{item.name}:</span>
+                      </div>
+                      <span className="font-bold text-slate-800 shrink-0 whitespace-nowrap tabular-nums pl-1">{item.value} ({item.percentage}%)</span>
                     </div>
                   ))}
                 </div>

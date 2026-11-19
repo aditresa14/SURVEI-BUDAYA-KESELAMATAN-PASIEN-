@@ -716,8 +716,8 @@ export default function Dashboard({
         </aside>
 
         {/* Main Container - Independently Scrollable */}
-        <main id="dashboard-main-scroll" ref={mainContainerRef} className="flex-grow p-4 md:p-8 w-full overflow-y-auto md:h-full pb-24 md:pb-8 bg-[#FAFBFB]">
-          <div className="max-w-7xl mx-auto w-full">
+        <main id="dashboard-main-scroll" ref={mainContainerRef} className="flex-grow p-3 sm:p-5 md:p-6 lg:px-7 lg:py-6 w-full overflow-y-auto md:h-full pb-24 md:pb-8 bg-[#FAFBFB]">
+          <div className="max-w-[1440px] 2xl:max-w-[1536px] mx-auto w-full">
         
         {/* Dynamic View rendering */}
         <AnimatePresence mode="wait">
